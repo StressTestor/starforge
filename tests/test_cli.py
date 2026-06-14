@@ -67,7 +67,7 @@ def test_cli_writes_release_assets(tmp_path: Path) -> None:
     manifest = json.loads((output / "manifest.json").read_text())
     assert manifest["seed"] == 4242
     assert manifest["selected_seed"] in [entry["seed"] for entry in manifest["collection"]]
-    assert manifest["project"] == "starforge-lab-v3"
+    assert manifest["project"] == "starforge-lab"
     assert manifest["preset"] == "cold-singularity"
     assert manifest["selected_preset"] in {"event-horizon", "neon-collapse", "cold-singularity", "solar-wound", "deep-field"}
     assert manifest["width"] == 192

@@ -6,9 +6,10 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from starforge.config import RenderConfig
+from starforge.curation import Curator, get_curator
 from starforge.genome import Genome
 from starforge.presets import PRESET_NAMES
-from starforge.scoring import ScoreResult, score_composition
+from starforge.scoring import ScoreResult
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,7 @@ def build_collection(
     batch_count: int,
     top_k: int,
     thumb_width: int = 220,
+    curator: Curator | None = None,
 ) -> CollectionResult:
     if batch_count < 1:
         raise ValueError("batch count must be at least 1")
@@ -48,6 +50,8 @@ def build_collection(
 
     from starforge.renderer import StarforgeRenderer
 
+    if curator is None:
+        curator = get_curator()
     thumb_height = max(64, round(thumb_width * config.height / config.width))
     entries: list[CollectionEntry] = []
 
@@ -63,7 +67,7 @@ def build_collection(
         )
         image = StarforgeRenderer(thumb_config).render_poster(include_title=False)
         genome = Genome.from_seed(seed, preset)
-        score = score_composition(image, genome)
+        score = curator.score(image, genome)
         entries.append(CollectionEntry(seed=seed, preset=preset, score=score, genome=genome, image=image))
 
     top_entries = sorted(entries, key=lambda entry: entry.score.total, reverse=True)[:top_k]

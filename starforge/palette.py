@@ -25,25 +25,3 @@ def gradient(values: np.ndarray, stops: tuple[tuple[float, tuple[float, float, f
     result = np.where((source >= stops[-1][0])[..., None], np.asarray(stops[-1][1], dtype=np.float32), result)
     return result
 
-
-BACKGROUND_STOPS: tuple[tuple[float, tuple[float, float, float]], ...] = (
-    (0.00, (0.005, 0.006, 0.020)),
-    (0.26, (0.015, 0.025, 0.060)),
-    (0.48, (0.055, 0.030, 0.115)),
-    (0.72, (0.020, 0.115, 0.175)),
-    (1.00, (0.500, 0.190, 0.360)),
-)
-
-DISK_STOPS: tuple[tuple[float, tuple[float, float, float]], ...] = (
-    (0.00, (0.000, 0.000, 0.000)),
-    (0.18, (0.090, 0.030, 0.150)),
-    (0.38, (0.900, 0.120, 0.340)),
-    (0.62, (1.000, 0.450, 0.130)),
-    (0.82, (1.000, 0.850, 0.420)),
-    (1.00, (0.860, 1.000, 1.000)),
-)
-
-JET_COLOR = np.asarray((0.200, 0.850, 1.000), dtype=np.float32)
-JET_CORE = np.asarray((0.950, 0.960, 1.000), dtype=np.float32)
-PHOTON_COLOR = np.asarray((1.000, 0.720, 0.420), dtype=np.float32)
-

@@ -8,8 +8,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from starforge.config import RenderConfig
+from starforge.curation import Curator, get_curator
 from starforge.genome import Genome
-from starforge.scoring import score_composition
 
 
 @dataclass(frozen=True)
@@ -39,12 +39,16 @@ def candidate_seeds(base_seed: int, count: int) -> list[int]:
 
 
 def score_image(image: Image.Image) -> float:
-    return score_composition(image, Genome.from_seed(0, "neon-collapse")).total
+    return get_curator().score(image, Genome.from_seed(0, "neon-collapse")).total
 
 
-def build_seed_gallery(config: RenderConfig, *, count: int, thumb_width: int = 220) -> SeedGalleryResult:
+def build_seed_gallery(
+    config: RenderConfig, *, count: int, thumb_width: int = 220, curator: Curator | None = None
+) -> SeedGalleryResult:
     from starforge.renderer import StarforgeRenderer
 
+    if curator is None:
+        curator = get_curator()
     seeds = candidate_seeds(config.seed, count)
     thumb_height = max(64, round(thumb_width * config.height / config.width))
     gutter = 12
@@ -72,7 +76,7 @@ def build_seed_gallery(config: RenderConfig, *, count: int, thumb_width: int = 2
             preset=config.preset,
         )
         thumb = StarforgeRenderer(thumb_config).render_poster(include_title=False)
-        score = score_composition(thumb, Genome.from_seed(seed, config.preset))
+        score = curator.score(thumb, Genome.from_seed(seed, config.preset))
         candidates.append(SeedCandidate(seed=seed, score=score.total, reasons=score.reasons))
         thumbnails.append(thumb)
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import tomllib
 from pathlib import Path
 
@@ -78,7 +77,9 @@ def test_composition_score_has_reasons_and_prefers_rule_of_thirds() -> None:
     thirds_score = score_composition(thirds, Genome.from_seed(2, "neon-collapse"))
 
     assert thirds_score.total > centered_score.total
-    assert {"tonal_range", "thirds", "focal_balance", "busy_penalty", "ring_separation"} <= set(thirds_score.reasons)
+    assert {"tonal_range", "thirds", "focal_balance", "busy_penalty", "ring_separation", "color_harmony"} <= set(
+        thirds_score.reasons
+    )
 
 
 def test_collection_sweeps_presets_and_returns_ranked_top_k() -> None:

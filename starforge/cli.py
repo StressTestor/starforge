@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from starforge.collection import CollectionResult, build_collection
 from starforge.config import RenderConfig
+from starforge.curation import get_curator
 from starforge.gallery import SeedGalleryResult, build_seed_gallery, write_lab_page
 from starforge.genome import Genome
 from starforge.presets import PRESET_NAMES
@@ -33,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed-gallery", type=int, default=0, help="Render this many candidate seeds and select the best.")
     parser.add_argument("--batch", type=int, default=0, help="Sweep this many seeds across all presets for a ranked collection.")
     parser.add_argument("--top-k", type=int, default=0, help="Keep this many ranked collection entries.")
+    parser.add_argument("--curator", default="heuristic", help="Curator that ranks candidates (default: heuristic).")
     parser.add_argument("--supersample", type=int, default=1, help="Poster supersampling factor, 1-3.")
     parser.add_argument("--video", action="store_true", help="Export MP4 and WebM loops with ffmpeg when available.")
     parser.add_argument(
@@ -45,12 +47,14 @@ def main(argv: list[str] | None = None) -> int:
     output = args.output
     output.mkdir(parents=True, exist_ok=True)
 
+    curator = get_curator(args.curator)
+
     seed_gallery: SeedGalleryResult | None = None
     selected_seed = args.seed
     selected_preset = args.preset
     if args.seed_gallery:
         gallery_config = RenderConfig(width=320, height=440, seed=args.seed, frames=min(args.frames, 8), preset=args.preset)
-        seed_gallery = build_seed_gallery(gallery_config, count=args.seed_gallery, thumb_width=220)
+        seed_gallery = build_seed_gallery(gallery_config, count=args.seed_gallery, thumb_width=220, curator=curator)
         selected_seed = seed_gallery.selected_seed
         seed_gallery.image.save(output / "seed_gallery.png", optimize=True)
 
@@ -58,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     top_k = args.top_k or min(9, args.batch or 0)
     if args.batch:
         collection_config = RenderConfig(width=320, height=440, seed=args.seed, frames=min(args.frames, 8), preset=args.preset)
-        collection = build_collection(collection_config, batch_count=args.batch, top_k=top_k, thumb_width=220)
+        collection = build_collection(collection_config, batch_count=args.batch, top_k=top_k, thumb_width=220, curator=curator)
         collection.image.save(output / "collection_gallery.png", optimize=True)
         winner = collection.entries[0]
         selected_seed = winner.seed
@@ -115,8 +119,8 @@ def main(argv: list[str] | None = None) -> int:
         else [{"seed": selected_seed, "score": None}]
     )
     manifest = {
-        "project": "starforge-lab-v3",
-        "version": "3.0.0",
+        "project": "starforge-lab",
+        "version": "4.0.0",
         "seed": args.seed,
         "selected_seed": selected_seed,
         "preset": args.preset,
@@ -132,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         "collection": [entry.to_manifest() for entry in collection.entries] if collection is not None else [],
         "batch": args.batch,
         "top_k": top_k,
+        "curator": args.curator,
         "video": video_status,
         "assets": assets,
         "generated_at": datetime.now(timezone.utc).isoformat(),

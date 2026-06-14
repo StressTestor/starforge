@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     manifest = json.loads(manifest_path.read_text())
-    if manifest.get("project") != "starforge-lab-v3":
+    if manifest.get("project") != "starforge-lab":
         print(f"unexpected project: {manifest.get('project')}", file=sys.stderr)
         return 1
 

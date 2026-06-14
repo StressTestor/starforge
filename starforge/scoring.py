@@ -55,18 +55,29 @@ def score_composition(image: Image.Image, genome: Genome) -> ScoreResult:
     if ring.any() and core.any():
         ring_separation = max(0.0, float(luminance[ring].mean() - luminance[core].mean()))
 
+    # colour harmony: the bright subject should read as saturated and vivid, not
+    # a muddy grey — a perceptual proxy that rewards a coherent, rich palette.
+    rgb = arr / 255.0
+    chroma_max = rgb.max(axis=-1)
+    chroma_min = rgb.min(axis=-1)
+    saturation = (chroma_max - chroma_min) / np.clip(chroma_max, 1e-6, None)
+    bright = luminance > np.percentile(luminance, 80)
+    color_harmony = float(saturation[bright].mean()) * 100.0 if bright.any() else 0.0
+
     reasons = {
         "tonal_range": tonal_range,
         "thirds": thirds,
         "focal_balance": focal_balance,
         "busy_penalty": busy_penalty,
         "ring_separation": ring_separation,
+        "color_harmony": color_harmony,
     }
     total = (
         tonal_range * 0.42
         + thirds * 0.55
         + focal_balance * 0.24
         + ring_separation * 0.34
+        + color_harmony * 0.18
         + busy_penalty
     )
     return ScoreResult(total=float(total), reasons=reasons)

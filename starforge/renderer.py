@@ -8,7 +8,14 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 from starforge.config import RenderConfig
 from starforge.genome import Genome
-from starforge.lensing import apply_gravitational_lensing, lensing_spin_for_phase
+from starforge.lensing import (
+    _bilinear_sample_f,
+    apply_gravitational_lensing,
+    build_deflection_lut,
+    build_disk_fold_map,
+    lensing_spin_for_phase,
+    sample_emergent_ring,
+)
 from starforge.palette import (
     clamp01,
     gradient,
@@ -28,6 +35,66 @@ class StarforgeRenderer:
         self._gy = self._y - self.genome.center_y
         self._radius = np.sqrt(self._gx**2 + self._gy**2)
         self._theta = np.arctan2(self._gy, self._gx)
+        # frame-centered radius drives the vignette so the frame darkens at the
+        # image edges regardless of where the (off-center) black hole sits — a
+        # deliberate framing choice, not a side effect of the subject radius.
+        self._frame_radius = np.sqrt(self._x**2 + self._y**2)
+        self._build_lensing()
+
+    # The disk's secondary image (over-shadow arc + under-curl) is the disk's own
+    # emission re-gathered through a precomputed gravitational fold; the photon
+    # ring emerges from the deflection divergence. All frame-invariant.
+    _B_MAX = 1.8
+    _ARC_BAND = 0.07
+    _TOP_ARC_BRIGHTNESS = 1.7
+    _BOTTOM_ARC_BRIGHTNESS = 0.7
+    # photon-ring sharpening: exponent = base + gain / photon_tightness. With the
+    # genome's tightness range (~0.0002..0.0007) this gives a ~1.7..3.0 exponent —
+    # tighter rings get a crisper falloff.
+    _RING_SHARPEN_BASE = 1.15
+    _RING_SHARPEN_GAIN = 0.0004
+    _RING_BRIGHTNESS = 1.55
+
+    def _build_lensing(self) -> None:
+        g = self.genome
+        # primary disk: inclined projected ellipse (disk_thickness == cos i),
+        # in the tilt-rotated frame. Frame-invariant coordinates.
+        xr, yr = self._rotated(g.disk_tilt)
+        disk_y = yr / g.disk_thickness
+        self._flat_disk_radius = np.sqrt(xr**2 + disk_y**2).astype(np.float32)
+        self._flat_disk_theta = np.arctan2(disk_y, xr).astype(np.float32)
+
+        # emergent photon ring from the strong-deflection divergence
+        self._luts = build_deflection_lut(g.photon_radius, g.lensing_strength, b_max=self._B_MAX)
+        self._ring_field = sample_emergent_ring(self._radius, self._luts, b_max=self._B_MAX)
+
+        # gravitational fold: far side -> arc over the top, dim curl beneath
+        self._fold = build_disk_fold_map(
+            self.config.width,
+            self.config.height,
+            center_x=g.center_x,
+            center_y=g.center_y,
+            orientation=g.disk_tilt,
+            disk_radius=g.disk_radius,
+            disk_thickness=g.disk_thickness,
+            horizon_radius=g.horizon_radius,
+            photon_radius=g.photon_radius,
+            arc_band=self._ARC_BAND,
+        )
+
+        # frame-invariant masks — depend only on geometry, so cache them once
+        # rather than recomputing every animation frame.
+        beam = 1.0 + 0.25 * g.beaming_strength * g.rotation_direction * np.cos(self._theta - g.disk_tilt)
+        self._arc_beam = beam[..., None].astype(np.float32)
+        disk_shadow = np.exp(-(self._radius**2) / (g.horizon_radius * 0.5))
+        self._disk_shadow_mul = (1.0 - disk_shadow * 0.82)[..., None].astype(np.float32)
+        horizon = clamp01(1.0 - np.exp(-((self._radius / g.horizon_radius) ** 8)))
+        self._gravity_well = clamp01(0.35 + 0.65 * horizon)[..., None].astype(np.float32)
+        self._vignette_mul = clamp01(1.18 - self._frame_radius * 0.55)[..., None].astype(np.float32)
+
+        # the smoothed disk (braids flattened) is the gather source for the
+        # secondary arc; it has no phase dependence, so build it once here.
+        self._smooth_disk = self._disk_emission(self._flat_disk_radius, self._flat_disk_theta, 0.0, smooth=True)
 
     def render_poster(self, *, include_title: bool = True) -> Image.Image:
         if self.config.supersample > 1:
@@ -101,35 +168,67 @@ class StarforgeRenderer:
         field += 0.11 * np.exp(-((self._x - 0.55) ** 2 + (self._y + 0.34 - self.genome.center_y * 0.7) ** 2) / 0.22)
         return self._temperature_shift(gradient(clamp01(field), self.preset.background_stops), amount=0.45)
 
-    def _accretion_disk(self, phase: float) -> np.ndarray:
-        xr, yr = self._rotated(self.genome.disk_tilt)
-        disk_y = yr / self.genome.disk_thickness
-        disk_radius = np.sqrt(xr**2 + disk_y**2)
-        disk_theta = np.arctan2(disk_y, xr)
+    def _disk_emission(
+        self, disk_radius: np.ndarray, disk_theta: np.ndarray, phase: float, *, smooth: bool = False
+    ) -> np.ndarray:
+        """Pure accretion-disk texture as a function of plane radius and azimuth.
 
-        main = np.exp(-((disk_radius - self.genome.disk_radius) ** 2) / (0.008 + self.genome.disk_thickness * 0.010))
-        outer = 0.55 * np.exp(-((disk_radius - (self.genome.disk_radius + self.genome.disk_gap)) ** 2) / 0.030)
-        inner = 0.90 * np.exp(-((disk_radius - max(0.18, self.genome.disk_radius - self.genome.disk_gap)) ** 2) / 0.006)
+        Shared by the primary disk and the lensed secondary arc. ``smooth=True``
+        flattens the braided/wake spokes so the secondary reads as a clean
+        wrapped arc instead of a radial spray of the disk's braids.
+        """
+        g = self.genome
+        main = np.exp(-((disk_radius - g.disk_radius) ** 2) / (0.008 + g.disk_thickness * 0.010))
+        outer = 0.55 * np.exp(-((disk_radius - (g.disk_radius + g.disk_gap)) ** 2) / 0.030)
+        inner = 0.90 * np.exp(-((disk_radius - max(0.18, g.disk_radius - g.disk_gap)) ** 2) / 0.006)
 
-        braided = 0.62 + 0.38 * np.sin(
-            disk_theta * self.genome.disk_band_count
-            - disk_radius * (18.0 + 8.0 * self.genome.disk_turbulence)
-            + phase * math.tau * 2.0
-        )
-        wake = 0.70 + 0.30 * np.sin(
-            xr * (30.0 + 10.0 * self.genome.disk_turbulence)
-            + yr * 16.0
-            - phase * math.tau * 1.6
-        )
-        velocity = self.genome.rotation_direction * np.cos(disk_theta)
+        if smooth:
+            braided = 1.0
+            wake = 1.0
+        else:
+            braided = 0.62 + 0.38 * np.sin(
+                disk_theta * g.disk_band_count
+                - disk_radius * (18.0 + 8.0 * g.disk_turbulence)
+                + phase * math.tau * 2.0
+            )
+            xr = disk_radius * np.cos(disk_theta)
+            yr = disk_radius * np.sin(disk_theta) * g.disk_thickness
+            wake = 0.70 + 0.30 * np.sin(
+                xr * (30.0 + 10.0 * g.disk_turbulence) + yr * 16.0 - phase * math.tau * 1.6
+            )
+        velocity = g.rotation_direction * np.cos(disk_theta)
         approaching = np.clip(velocity, 0.0, 1.0)
         receding = np.clip(-velocity, 0.0, 1.0)
-        beaming = 1.0 + self.genome.beaming_strength * approaching**1.7 - 0.18 * receding
+        beaming = 1.0 + g.beaming_strength * approaching**1.7 - 0.18 * receding
         intensity = clamp01((main + outer + inner) * braided * wake * beaming)
 
-        disk = self._temperature_shift(gradient(intensity, self.preset.disk_stops), amount=1.0) * intensity[..., None] * 1.75 * self.preset.disk_power
-        shadow = np.exp(-(self._radius**2) / (self.genome.horizon_radius * 1.28))
-        return disk * (1.0 - shadow[..., None] * 0.72)
+        return (
+            self._temperature_shift(gradient(intensity, self.preset.disk_stops), amount=1.0)
+            * intensity[..., None]
+            * 1.75
+            * self.preset.disk_power
+        )
+
+    def _accretion_disk(self, phase: float) -> np.ndarray:
+        """Inclined accretion disk plus its gravitationally lensed secondary
+        image. The far side, re-gathered through the precomputed fold, arcs over
+        the top of the shadow; a dimmer copy curls beneath. The arcs are the
+        disk's own emission, so colour and texture stay consistent."""
+        primary = self._disk_emission(self._flat_disk_radius, self._flat_disk_theta, phase)
+
+        sx_top, sy_top = self._fold.src_top
+        sx_bot, sy_bot = self._fold.src_bot
+        arc_top = _bilinear_sample_f(self._smooth_disk, sx_top, sy_top) * self._fold.w_top[..., None]
+        arc_bot = _bilinear_sample_f(self._smooth_disk, sx_bot, sy_bot) * self._fold.w_bot[..., None]
+        # the gathered arc already carries the disk-frame Doppler beaming baked
+        # into _smooth_disk; _arc_beam is a SECOND, image-space highlight applied
+        # only to the top arc so its bright side lines up with the approaching
+        # rim. Two intentional, distinct weightings, not an accident.
+        secondary = arc_top * self._TOP_ARC_BRIGHTNESS * self._arc_beam + arc_bot * self._BOTTOM_ARC_BRIGHTNESS
+
+        # _disk_shadow_mul keeps the darkening confined to the captured shadow so
+        # it does not bleed into and dim the over-shadow arc that hugs the rim.
+        return (primary + secondary) * self._disk_shadow_mul
 
     def _relativistic_jets(self, phase: float) -> np.ndarray:
         xj, yj = self._rotated(self.genome.jet_angle + math.pi / 2.0)
@@ -145,9 +244,14 @@ class StarforgeRenderer:
         return ((shaft * flicker * taper * side_gain)[..., None] * jet_color + (core * taper * side_gain)[..., None] * jet_core) * 0.75 * self.preset.jet_power
 
     def _photon_ring(self) -> np.ndarray:
-        ring = np.exp(-((self._radius - self.genome.photon_radius) ** 2) / self.genome.photon_tightness)
-        halo = 0.50 * np.exp(-((self._radius - (self.genome.photon_radius + 0.045)) ** 2) / 0.0033)
-        return (ring + halo)[..., None] * np.asarray(self.preset.photon_color, dtype=np.float32)
+        """Photon ring that EMERGES from the deflection piling up at the photon
+        sphere, rather than a hand-drawn gaussian. The raw log-divergence from
+        the LUT is normalized and sharpened; photon_tightness trims its width."""
+        ring = self._ring_field
+        ring = ring / max(float(ring.max()), 1e-6)
+        sharpen = self._RING_SHARPEN_BASE + self._RING_SHARPEN_GAIN / max(self.genome.photon_tightness, 1e-5)
+        ring = np.clip(ring, 0.0, 1.0) ** sharpen
+        return ring[..., None] * np.asarray(self.preset.photon_color, dtype=np.float32) * self._RING_BRIGHTNESS
 
     def _star_field(self, rng: np.random.Generator) -> np.ndarray:
         random_field = rng.random((self.config.height, self.config.width), dtype=np.float32)
@@ -164,14 +268,11 @@ class StarforgeRenderer:
         return bright[..., None] * colors * dust_lane[..., None]
 
     def _carve_event_horizon(self, rgb: np.ndarray) -> np.ndarray:
-        horizon = clamp01(1.0 - np.exp(-((self._radius / self.genome.horizon_radius) ** 8)))
-        gravity_well = clamp01(0.35 + 0.65 * horizon)
-        return rgb * gravity_well[..., None]
+        return rgb * self._gravity_well
 
     def _add_vignette(self, rgb: np.ndarray) -> np.ndarray:
-        vignette = clamp01(1.18 - self._radius * 0.55)
         floor = np.asarray((0.004, 0.004, 0.016), dtype=np.float32)
-        return rgb * vignette[..., None] + floor
+        return rgb * self._vignette_mul + floor
 
     @staticmethod
     def _to_image(rgb: np.ndarray) -> Image.Image:
@@ -222,7 +323,7 @@ class StarforgeRenderer:
         margin = max(28, width // 22)
         title = self.preset.title if self.config.title == "STARFORGE" else self.config.title
         subtitle = f"seed {self.config.seed} // preset {self.config.preset} // tilt {self.genome.disk_tilt:+.2f} // lensing {self.genome.lensing_strength:.3f}"
-        strip = "STARFORGE LAB V3  /  SEEDED STRUCTURAL GENOME  /  BILINEAR LENSING  /  FFMPEG LOOP READY"
+        strip = "STARFORGE LAB V4  /  GRAVITATIONAL DISK LENSING"
 
         title_box = draw.textbbox((0, 0), title, font=title_font)
         title_width = title_box[2] - title_box[0]
