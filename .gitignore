@@ -1,0 +1,31 @@
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# environments
+.venv/
+venv/
+env/
+
+# generated release output (renders are artifacts, not source)
+/release/
+/_render/
+*.gif
+*.mp4
+*.webm
+# keep small sample renders that are intentionally committed under docs/samples/
+!docs/samples/*.gif
+
+# os
+.DS_Store

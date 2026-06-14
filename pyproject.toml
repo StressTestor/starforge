@@ -1,0 +1,26 @@
+[project]
+name = "starforge"
+version = "0.3.0"
+description = "Deterministic procedural black-hole lab with seeded structural genomes."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "numpy",
+  "pillow",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+starforge = "starforge.cli:main"
+
+[project.optional-dependencies]
+test = [
+  "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
