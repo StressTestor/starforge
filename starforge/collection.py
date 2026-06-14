@@ -64,9 +64,10 @@ def build_collection(
             seed=seed,
             frames=max(2, min(config.frames, 8)),
             preset=preset,
+            subject=config.subject,
         )
         image = StarforgeRenderer(thumb_config).render_poster(include_title=False)
-        genome = Genome.from_seed(seed, preset)
+        genome = Genome.from_seed(seed, preset, config.subject)
         score = curator.score(image, genome)
         entries.append(CollectionEntry(seed=seed, preset=preset, score=score, genome=genome, image=image))
 

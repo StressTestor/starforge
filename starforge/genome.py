@@ -6,6 +6,11 @@ import numpy as np
 
 from starforge.presets import get_preset
 
+# rendered subjects. black-hole is the default and its render path is unchanged
+# from v4; lensed-galaxy reuses the single-center lensing to bend a background
+# galaxy field into Einstein rings/arcs.
+SUBJECT_NAMES: tuple[str, ...] = ("black-hole", "lensed-galaxy")
+
 
 @dataclass(frozen=True)
 class Genome:
@@ -13,6 +18,7 @@ class Genome:
 
     seed: int
     preset: str
+    subject: str
     center_x: float
     center_y: float
     disk_tilt: float
@@ -35,8 +41,14 @@ class Genome:
     background_twist: float
 
     @classmethod
-    def from_seed(cls, seed: int, preset: str) -> "Genome":
+    def from_seed(cls, seed: int, preset: str, subject: str = "black-hole") -> "Genome":
+        if subject not in SUBJECT_NAMES:
+            choices = ", ".join(SUBJECT_NAMES)
+            raise ValueError(f"unknown subject '{subject}'; choose one of: {choices}")
         visual = get_preset(preset)
+        # NOTE: the black-hole draw sequence below is LOCKED (see
+        # test_rng_order_lock_v5). subject does not consume the RNG; any new
+        # genome field must be drawn AFTER this sequence, never inserted into it.
         rng = np.random.default_rng(seed ^ _stable_preset_salt(preset))
 
         x_sign = -1 if rng.random() < 0.5 else 1
@@ -52,6 +64,7 @@ class Genome:
         return cls(
             seed=seed,
             preset=preset,
+            subject=subject,
             center_x=center_x,
             center_y=center_y,
             disk_tilt=disk_tilt,

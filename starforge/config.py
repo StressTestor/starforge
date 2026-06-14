@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from starforge.genome import SUBJECT_NAMES
 from starforge.presets import get_preset
 
 
@@ -15,6 +16,7 @@ class RenderConfig:
     frames: int = 42
     title: str = "STARFORGE"
     preset: str = "neon-collapse"
+    subject: str = "black-hole"
     supersample: int = 1
 
     def __post_init__(self) -> None:
@@ -30,6 +32,8 @@ class RenderConfig:
             raise ValueError("frames must be 180 or less")
         if self.supersample < 1 or self.supersample > 3:
             raise ValueError("supersample must be between 1 and 3")
+        if self.subject not in SUBJECT_NAMES:
+            raise ValueError(f"subject must be one of: {', '.join(SUBJECT_NAMES)}")
         get_preset(self.preset)
 
     @property

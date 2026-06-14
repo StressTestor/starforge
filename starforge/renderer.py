@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -13,6 +14,7 @@ from starforge.lensing import (
     apply_gravitational_lensing,
     build_deflection_lut,
     build_disk_fold_map,
+    build_einstein_lens_map,
     lensing_spin_for_phase,
     sample_emergent_ring,
 )
@@ -23,23 +25,39 @@ from starforge.palette import (
 from starforge.presets import get_preset
 
 
+@dataclass(frozen=True)
+class _SourceGalaxy:
+    """A background source galaxy for the lensed-galaxy subject. The gaussian
+    ``blob`` profile is frame-invariant (precomputed once); only ``twinkle_phase``
+    drives the per-frame brightness so the animation stays a seamless loop."""
+
+    blob: np.ndarray
+    color: np.ndarray  # (3,) rgb already scaled by brightness
+    twinkle_phase: float
+
+
 class StarforgeRenderer:
-    """Render deterministic black-hole poster and animation frames."""
+    """Render deterministic poster and animation frames for a gravitational-
+    lensing subject (black-hole or lensed-galaxy)."""
 
     def __init__(self, config: RenderConfig) -> None:
         self.config = config
         self.preset = get_preset(config.preset)
-        self.genome = Genome.from_seed(config.seed, config.preset)
+        self.genome = Genome.from_seed(config.seed, config.preset, config.subject)
         self._x, self._y = self._coordinate_grid(config.width, config.height, config.aspect)
         self._gx = self._x - self.genome.center_x
         self._gy = self._y - self.genome.center_y
         self._radius = np.sqrt(self._gx**2 + self._gy**2)
         self._theta = np.arctan2(self._gy, self._gx)
         # frame-centered radius drives the vignette so the frame darkens at the
-        # image edges regardless of where the (off-center) black hole sits — a
+        # image edges regardless of where the (off-center) subject sits — a
         # deliberate framing choice, not a side effect of the subject radius.
         self._frame_radius = np.sqrt(self._x**2 + self._y**2)
-        self._build_lensing()
+        self._vignette_mul = clamp01(1.18 - self._frame_radius * 0.55)[..., None].astype(np.float32)
+        if self.genome.subject == "lensed-galaxy":
+            self._build_galaxy()
+        else:
+            self._build_lensing()
 
     # The disk's secondary image (over-shadow arc + under-curl) is the disk's own
     # emission re-gathered through a precomputed gravitational fold; the photon
@@ -90,11 +108,133 @@ class StarforgeRenderer:
         self._disk_shadow_mul = (1.0 - disk_shadow * 0.82)[..., None].astype(np.float32)
         horizon = clamp01(1.0 - np.exp(-((self._radius / g.horizon_radius) ** 8)))
         self._gravity_well = clamp01(0.35 + 0.65 * horizon)[..., None].astype(np.float32)
-        self._vignette_mul = clamp01(1.18 - self._frame_radius * 0.55)[..., None].astype(np.float32)
 
         # the smoothed disk (braids flattened) is the gather source for the
         # secondary arc; it has no phase dependence, so build it once here.
         self._smooth_disk = self._disk_emission(self._flat_disk_radius, self._flat_disk_theta, 0.0, smooth=True)
+
+    # ---- lensed-galaxy subject ----------------------------------------------
+    _EINSTEIN_BASE = 0.27  # baseline Einstein radius, nudged by lensing_strength
+    _BG_GALAXY_COUNT = 8  # background source galaxies beyond the main lensed one
+    # separate RNG stream for galaxy structure, so it never advances the locked
+    # black-hole draw order (the genome stays byte-identical across subjects).
+    _GALAXY_RNG_STREAM = 0x6A17
+
+    def _build_galaxy(self) -> None:
+        """Frame-invariant setup for the lensed-galaxy subject: a singular-
+        isothermal-sphere lens (reusing the single-center machinery) plus a
+        deterministic set of background source galaxies with precomputed gaussian
+        profiles."""
+        g = self.genome
+        rng = np.random.default_rng([self.config.seed, self._GALAXY_RNG_STREAM])
+        self._einstein_radius = float(
+            np.clip(self._EINSTEIN_BASE + g.lensing_strength * 0.5 + rng.uniform(-0.03, 0.05), 0.20, 0.42)
+        )
+        ellipticity = float(rng.uniform(0.06, 0.24))
+        ellipticity_angle = float(g.disk_tilt * 2.0 + rng.uniform(-0.4, 0.4))
+        self._lens_map = build_einstein_lens_map(
+            self.config.width,
+            self.config.height,
+            center_x=g.center_x,
+            center_y=g.center_y,
+            einstein_radius=self._einstein_radius,
+            ellipticity=ellipticity,
+            ellipticity_angle=ellipticity_angle,
+        )
+
+        # all galaxy RNG draws happen here, in one visible order, so the field is
+        # reproducible and a reader can see exactly what consumes the stream.
+        source_tint = np.asarray(self.preset.photon_color, dtype=np.float32)
+        galaxies: list[_SourceGalaxy] = []
+
+        # main source: just behind the lens (small offset -> arcs, not a ring)
+        off_angle = float(rng.uniform(0.0, math.tau))
+        off_r = float(rng.uniform(0.02, 0.08))
+        main_size = float(rng.uniform(0.038, 0.060))
+        main_q = float(rng.uniform(0.4, 0.95))
+        main_angle = float(rng.uniform(0.0, math.tau))
+        main_twinkle = float(rng.uniform(0.0, math.tau))
+        galaxies.append(
+            self._make_source_galaxy(
+                nx=off_r * math.cos(off_angle), ny=off_r * math.sin(off_angle),
+                size=main_size, q=main_q, angle=main_angle,
+                color=np.asarray(0.5 + 0.5 * source_tint, dtype=np.float32) * 1.5,
+                twinkle_phase=main_twinkle,
+            )
+        )
+
+        # scattered background sources, lensed into weaker arcs
+        for _ in range(self._BG_GALAXY_COUNT):
+            ang = float(rng.uniform(0.0, math.tau))
+            rad = float(rng.uniform(0.45, 1.25))
+            hue = float(rng.uniform(0.0, 1.0))
+            size = float(rng.uniform(0.03, 0.07))
+            bright = float(rng.uniform(0.28, 0.65))
+            q = float(rng.uniform(0.4, 0.95))
+            angle = float(rng.uniform(0.0, math.tau))
+            twinkle = float(rng.uniform(0.0, math.tau))
+            galaxies.append(
+                self._make_source_galaxy(
+                    nx=rad * math.cos(ang), ny=rad * math.sin(ang),
+                    size=size, q=q, angle=angle,
+                    color=np.asarray((0.62 + 0.32 * hue, 0.70, 1.0 - 0.28 * hue), dtype=np.float32) * bright,
+                    twinkle_phase=twinkle,
+                )
+            )
+        self._galaxies = galaxies
+        self._lens_glow_color = np.asarray((1.0, 0.80, 0.52), dtype=np.float32)
+
+    def _make_source_galaxy(
+        self, *, nx: float, ny: float, size: float, q: float, angle: float, color: np.ndarray, twinkle_phase: float
+    ) -> _SourceGalaxy:
+        # pure: no RNG. builds the frame-invariant elliptical gaussian profile.
+        ca, sa = math.cos(angle), math.sin(angle)
+        rx = (self._gx - nx) * ca + (self._gy - ny) * sa
+        ry = -(self._gx - nx) * sa + (self._gy - ny) * ca
+        d2 = rx**2 + (ry / max(q, 0.2)) ** 2
+        blob = np.exp(-d2 / (size**2)).astype(np.float32)
+        return _SourceGalaxy(blob=blob, color=np.asarray(color, dtype=np.float32), twinkle_phase=twinkle_phase)
+
+    def _galaxy_source_plane(self, phase: float) -> np.ndarray:
+        # the blobs are frame-invariant; only the scalar twinkle animates.
+        src = np.zeros((self.config.height, self.config.width, 3), dtype=np.float32)
+        for gal in self._galaxies:
+            twinkle = 0.82 + 0.18 * math.sin(phase * math.tau + gal.twinkle_phase)
+            src += gal.blob[..., None] * gal.color * twinkle
+        return src
+
+    def _lens_galaxy_glow(self) -> np.ndarray:
+        # foreground lens galaxy: a warm elliptical glow at the lens center
+        e = self._einstein_radius
+        core = np.exp(-(self._radius**2) / (0.45 * e**2))
+        halo = 0.35 * np.exp(-self._radius / (0.7 * e))
+        return (core + halo)[..., None] * self._lens_glow_color * 0.45
+
+    def _render_galaxy_frame(self, phase: float, frame_index: int, include_title: bool) -> Image.Image:
+        rng = np.random.default_rng(self.config.seed + frame_index * 1009)
+        source = self._galaxy_source_plane(phase)
+        sx, sy = self._lens_map.src
+        mag = self._lens_map.magnification[..., None]
+        lensed = _bilinear_sample_f(source, sx, sy) * (0.45 + 0.55 * mag)
+
+        backdrop = self._background_field(phase) * 0.45
+        glow = self._lens_galaxy_glow()
+        stars = self._star_field(rng)
+
+        rgb = backdrop + lensed + glow + stars
+        rgb = self._temperature_shift(rgb, amount=0.3)
+        rgb = self._add_vignette(rgb)
+        return self._finish_frame(self._to_image(rgb), rng, include_title)
+
+    def _finish_frame(self, image: Image.Image, rng: np.random.Generator, include_title: bool) -> Image.Image:
+        """Shared post-processing tail for both subjects: bloom, pinprick stars,
+        film grain, and the optional title overlay."""
+        image = self._add_bloom(image)
+        image = self._add_pinprick_stars(image, rng)
+        image = self._add_grain(image, rng)
+        if include_title:
+            image = self._add_title(image)
+        return image
 
     def render_poster(self, *, include_title: bool = True) -> Image.Image:
         if self.config.supersample > 1:
@@ -105,6 +245,7 @@ class StarforgeRenderer:
                 frames=self.config.frames,
                 title=self.config.title,
                 preset=self.config.preset,
+                subject=self.config.subject,
                 supersample=1,
             )
             high = StarforgeRenderer(high_config).render_poster(include_title=False)
@@ -122,6 +263,11 @@ class StarforgeRenderer:
         return frames
 
     def _render_frame(self, phase: float, frame_index: int, include_title: bool) -> Image.Image:
+        if self.genome.subject == "lensed-galaxy":
+            return self._render_galaxy_frame(phase, frame_index, include_title)
+        return self._render_blackhole_frame(phase, frame_index, include_title)
+
+    def _render_blackhole_frame(self, phase: float, frame_index: int, include_title: bool) -> Image.Image:
         rng = np.random.default_rng(self.config.seed + frame_index * 1009)
         background = self._background_field(phase) + self._star_field(rng)
         background = self._add_vignette(background)
@@ -142,15 +288,7 @@ class StarforgeRenderer:
         rgb = lensed_background + disk + jets + photon
         rgb = self._carve_event_horizon(rgb)
         rgb = self._add_vignette(rgb)
-        image = self._to_image(rgb)
-        image = self._add_bloom(image)
-        image = self._add_pinprick_stars(image, rng)
-        image = self._add_grain(image, rng)
-
-        if include_title:
-            image = self._add_title(image)
-
-        return image
+        return self._finish_frame(self._to_image(rgb), rng, include_title)
 
     @staticmethod
     def _coordinate_grid(width: int, height: int, aspect: float) -> tuple[np.ndarray, np.ndarray]:
@@ -323,7 +461,12 @@ class StarforgeRenderer:
         margin = max(28, width // 22)
         title = self.preset.title if self.config.title == "STARFORGE" else self.config.title
         subtitle = f"seed {self.config.seed} // preset {self.config.preset} // tilt {self.genome.disk_tilt:+.2f} // lensing {self.genome.lensing_strength:.3f}"
-        strip = "STARFORGE LAB V4  /  GRAVITATIONAL DISK LENSING"
+        descriptor = (
+            "GRAVITATIONAL LENSING  /  EINSTEIN RING"
+            if self.genome.subject == "lensed-galaxy"
+            else "GRAVITATIONAL DISK LENSING"
+        )
+        strip = f"STARFORGE LAB V5  /  {descriptor}"
 
         title_box = draw.textbbox((0, 0), title, font=title_font)
         title_width = title_box[2] - title_box[0]

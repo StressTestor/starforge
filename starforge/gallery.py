@@ -74,9 +74,10 @@ def build_seed_gallery(
             seed=seed,
             frames=max(2, min(config.frames, 8)),
             preset=config.preset,
+            subject=config.subject,
         )
         thumb = StarforgeRenderer(thumb_config).render_poster(include_title=False)
-        score = curator.score(thumb, Genome.from_seed(seed, config.preset))
+        score = curator.score(thumb, Genome.from_seed(seed, config.preset, config.subject))
         candidates.append(SeedCandidate(seed=seed, score=score.total, reasons=score.reasons))
         thumbnails.append(thumb)
 

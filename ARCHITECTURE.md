@@ -2,7 +2,7 @@
 
 ## project overview
 
-Starforge Lab v4 is a deterministic procedural visual generator. It creates a structural black-hole genome from the seed, gravitationally lenses the accretion disk (the far side arcs over the shadow; the photon ring emerges from the deflection), renders a poster and animation, ranks candidates through a pluggable curator, emits a ranked collection, and packages a static HTML lab page with PNG/GIF/MP4/WebM assets.
+Starforge Lab v5 is a deterministic procedural gravitational-lensing art generator. From a seed it builds a structural genome and renders one of two subjects: a `black-hole` (an accretion disk whose far side lenses over the shadow, with an emergent photon ring) or a `lensed-galaxy` (a foreground elliptical that bends a background galaxy field into Einstein rings and arcs). It ranks candidates through a pluggable curator, emits a ranked collection, and packages a static HTML lab page with PNG/GIF/MP4/WebM assets.
 
 ## stack and dependencies
 
@@ -41,19 +41,26 @@ Starforge Lab v4 is a deterministic procedural visual generator. It creates a st
 │   ├── scoring.py
 │   └── video.py
 ├── tests
+│   ├── _genome_golden_v4.json
 │   ├── test_cli.py
 │   ├── test_curation.py
 │   ├── test_genome_scoring_collection.py
 │   ├── test_lensing_v4.py
 │   ├── test_presets_gallery_video.py
-│   └── test_renderer.py
+│   ├── test_render_invariants_v4.py
+│   ├── test_renderer.py
+│   ├── test_rng_order_lock_v5.py
+│   └── test_subject_v5.py
 └── tools
     └── inspect_outputs.py
 ```
 
 ## key patterns
 
-- `Genome.from_seed(seed, preset)` is the source of macro structure. The renderer should not add new hardcoded composition constants without routing them through the genome.
+- `Genome.from_seed(seed, preset, subject)` is the source of macro structure. The renderer should not add new hardcoded composition constants without routing them through the genome.
+- Subjects (`SUBJECT_NAMES` in `genome.py`) are the seam for render variety. `subject` is a genome field (not RenderConfig-only, not the curator); `StarforgeRenderer.__init__` dispatches to `_build_lensing` / `_build_galaxy` and `_render_frame` dispatches to `_render_blackhole_frame` / `_render_galaxy_frame`. The black-hole path is byte-identical to v4.
+- The black-hole genome draw order is LOCKED. `subject` does not consume the RNG, and any new genome field must be drawn AFTER the existing sequence. `test_rng_order_lock_v5` pins it with a golden so a re-roll is caught immediately.
+- `lensed-galaxy` reuses the single-center lensing: `build_einstein_lens_map` is a singular-isothermal-sphere lens (`beta = theta - theta_E * theta_hat`) that gathers a deterministic background galaxy field built from a SEPARATE rng (so it never touches the black-hole draw order).
 - `StarforgeRenderer` returns Pillow images and does not write files. Generation is the single source of truth and stays byte-identical for a given (seed, preset, size).
 - Disk lensing lives in `starforge.lensing`: `build_deflection_lut` tabulates the bending angle (strong-deflection log divergence at the photon sphere, blended to a weak-field tail); `sample_emergent_ring` gathers the photon ring from that divergence; `build_disk_fold_map` precomputes the gravitational fold that lays the disk's far side as an arc over the shadow. All frame-invariant, built once in `StarforgeRenderer.__init__`.
 - `disk_emission(r, theta, phase)` is the pure disk texture; the renderer feeds it the flat inclined-disk coordinates for the primary image and re-gathers a smoothed copy through the fold for the secondary arc.
@@ -95,11 +102,12 @@ GitHub Actions runs tests and a smoke render on push and pull request.
 | command | purpose |
 | --- | --- |
 | `python3 -m pip install -e ".[test]"` | install package and test extras |
-| `starforge --output ../../outputs/starforge --width 1600 --height 2200 --frames 48 --seed 260613 --preset neon-collapse --batch 10 --top-k 6 --supersample 2 --video --scale-preview` | generate v4 release after install |
+| `starforge --output ../../outputs/starforge --width 1600 --height 2200 --frames 48 --seed 260613 --preset neon-collapse --batch 10 --top-k 6 --supersample 2 --video --scale-preview` | generate the black-hole release after install |
+| `starforge --output ../../outputs/starforge-galaxy --seed 323965 --preset deep-field --subject lensed-galaxy --batch 10 --top-k 6 --supersample 2 --video --scale-preview` | generate a lensed-galaxy release |
 | `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. pytest -p no:cacheprovider -v` | run tests without install |
 | `python3 tools/inspect_outputs.py ../../outputs/starforge` | inspect generated release |
 
 ## last-updated
 
-2026-06-13
+2026-06-14
 

@@ -2,7 +2,16 @@
 
 most procedural art demos stop right before they become an artifact. and the seed is usually just noise.
 
-starforge lab is a deterministic python art machine. the seed drives real structure, not noise: black-hole position, disk tilt, banding, jet angle and asymmetry, horizon size, lensing strength, ring tightness, Doppler beaming, palette temperature. it sweeps seeds and presets, scores them with inspectable composition metrics, exports a ranked collection, and renders a final poster plus animation/video. a good render is reproducible from its seed, not lucky.
+starforge lab is a deterministic python art machine for gravitational lensing. the seed drives real structure, not noise: position, tilt, banding, horizon size, lensing strength, palette temperature. it sweeps seeds and presets, scores them with inspectable composition metrics, exports a ranked collection, and renders a final poster plus animation/video. a good render is reproducible from its seed, not lucky.
+
+## subjects
+
+two subjects, picked with `--subject`:
+
+- `black-hole` (default): an accretion disk whose far side lenses up over the shadow, with an emergent photon ring.
+- `lensed-galaxy`: a foreground elliptical galaxy that bends a background galaxy field into Einstein rings and arcs.
+
+both run on the same deterministic single-center lensing math. the black-hole path is byte-identical to v4.
 
 ## what v4 added
 
@@ -37,6 +46,8 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. python3 -m starforge.cli \
 
 installed as a console script too: `starforge --output release --seed 260613 ...`
 
+for a lensed galaxy, add `--subject lensed-galaxy` (try `--preset deep-field` or `solar-wound`).
+
 ## presets
 
 | preset | feel |
@@ -52,6 +63,7 @@ installed as a console script too: `starforge --output release --seed 260613 ...
 | knob | effect |
 | --- | --- |
 | `--seed` | starting point for the seed sweep |
+| `--subject` | `black-hole` (default) or `lensed-galaxy` |
 | `--preset` | visual colour system and rendering weights |
 | `--seed-gallery` | candidates to score before the final render (single preset) |
 | `--batch` / `--top-k` | sweep across all presets, keep the best k |

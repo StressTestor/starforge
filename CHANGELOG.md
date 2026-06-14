@@ -1,5 +1,16 @@
 # changelog
 
+## v5.0.0 - 2026-06-14
+
+starforge isn't only black holes now.
+
+- **subjects.** a `subject` axis on the genome (`--subject`), with the black-hole render path unchanged from v4 and a new **`lensed-galaxy`** subject. The renderer dispatches on `genome.subject`; the seam lives in the genome, not the curator or config.
+- **lensed-galaxy.** a singular-isothermal-sphere lens (reusing the single-center machinery) bends a deterministic background galaxy field into Einstein rings and arcs around a warm foreground elliptical, the Hubble gravitational-lens look. Stays deterministic numpy, stays a seamless loop.
+- **RNG-order lock.** the black-hole genome draw sequence is now pinned by a byte-identity golden test (`test_rng_order_lock_v5`) against fixed v4 seeds, so any future genome field that re-rolled the gallery is caught immediately. New fields must be drawn after the existing sequence.
+- semver 5.0.0; subject-aware title strip; `subject` recorded in the manifest.
+
+deferred to a future release: a timeline / merger mode (would break the seamless-loop identity) and a binary-merger subject (needs real two-center lensing / ray-tracing, out of the single-center architecture). See ROADMAP.md.
+
 ## v4.0.0 - 2026-06-13
 
 the black hole actually lenses now.

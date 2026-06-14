@@ -14,7 +14,7 @@ from starforge.collection import CollectionResult, build_collection
 from starforge.config import RenderConfig
 from starforge.curation import get_curator
 from starforge.gallery import SeedGalleryResult, build_seed_gallery, write_lab_page
-from starforge.genome import Genome
+from starforge.genome import SUBJECT_NAMES, Genome
 from starforge.presets import PRESET_NAMES
 from starforge.renderer import StarforgeRenderer
 from starforge.video import export_videos
@@ -31,6 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--frames", type=int, default=42, help="Animation frame count.")
     parser.add_argument("--seed", type=int, default=260613, help="Deterministic render seed.")
     parser.add_argument("--preset", choices=PRESET_NAMES, default="neon-collapse", help="Named visual preset.")
+    parser.add_argument("--subject", choices=SUBJECT_NAMES, default="black-hole", help="Rendered subject (black-hole or lensed-galaxy).")
     parser.add_argument("--seed-gallery", type=int, default=0, help="Render this many candidate seeds and select the best.")
     parser.add_argument("--batch", type=int, default=0, help="Sweep this many seeds across all presets for a ranked collection.")
     parser.add_argument("--top-k", type=int, default=0, help="Keep this many ranked collection entries.")
@@ -53,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     selected_seed = args.seed
     selected_preset = args.preset
     if args.seed_gallery:
-        gallery_config = RenderConfig(width=320, height=440, seed=args.seed, frames=min(args.frames, 8), preset=args.preset)
+        gallery_config = RenderConfig(width=320, height=440, seed=args.seed, frames=min(args.frames, 8), preset=args.preset, subject=args.subject)
         seed_gallery = build_seed_gallery(gallery_config, count=args.seed_gallery, thumb_width=220, curator=curator)
         selected_seed = seed_gallery.selected_seed
         seed_gallery.image.save(output / "seed_gallery.png", optimize=True)
@@ -61,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     collection: CollectionResult | None = None
     top_k = args.top_k or min(9, args.batch or 0)
     if args.batch:
-        collection_config = RenderConfig(width=320, height=440, seed=args.seed, frames=min(args.frames, 8), preset=args.preset)
+        collection_config = RenderConfig(width=320, height=440, seed=args.seed, frames=min(args.frames, 8), preset=args.preset, subject=args.subject)
         collection = build_collection(collection_config, batch_count=args.batch, top_k=top_k, thumb_width=220, curator=curator)
         collection.image.save(output / "collection_gallery.png", optimize=True)
         winner = collection.entries[0]
@@ -74,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=selected_seed,
         frames=args.frames,
         preset=selected_preset,
+        subject=args.subject,
         supersample=args.supersample,
     )
     poster = StarforgeRenderer(poster_config).render_poster()
@@ -81,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
     poster.save(poster_path, optimize=True)
 
     anim_width, anim_height = preview_dimensions(args.width, args.height, args.scale_preview)
-    animation_config = RenderConfig(width=anim_width, height=anim_height, seed=selected_seed, frames=args.frames, preset=selected_preset)
+    animation_config = RenderConfig(width=anim_width, height=anim_height, seed=selected_seed, frames=args.frames, preset=selected_preset, subject=args.subject)
     frames = StarforgeRenderer(animation_config).render_animation_frames()
 
     gif_path = output / "starforge.gif"
@@ -120,12 +122,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     manifest = {
         "project": "starforge-lab",
-        "version": "4.0.0",
+        "version": "5.0.0",
+        "subject": args.subject,
         "seed": args.seed,
         "selected_seed": selected_seed,
         "preset": args.preset,
         "selected_preset": selected_preset,
-        "selected_genome": Genome.from_seed(selected_seed, selected_preset).to_manifest(),
+        "selected_genome": Genome.from_seed(selected_seed, selected_preset, args.subject).to_manifest(),
         "width": args.width,
         "height": args.height,
         "frames": args.frames,

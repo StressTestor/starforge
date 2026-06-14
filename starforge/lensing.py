@@ -66,6 +66,65 @@ def lensing_spin_for_phase(phase: float) -> float:
     return 0.16 + 0.045 * math.sin(phase * math.tau)
 
 
+@dataclass(frozen=True)
+class EinsteinLens:
+    """Precomputed singular-isothermal-sphere lens: per-pixel source-plane gather
+    coordinates, a magnification field, and the (unlensed) image radius."""
+
+    src: tuple[np.ndarray, np.ndarray]
+    magnification: np.ndarray
+    image_radius: np.ndarray
+
+
+def build_einstein_lens_map(
+    width: int,
+    height: int,
+    *,
+    center_x: float,
+    center_y: float,
+    einstein_radius: float,
+    ellipticity: float = 0.0,
+    ellipticity_angle: float = 0.0,
+) -> EinsteinLens:
+    """Precompute a singular-isothermal-sphere gravitational lens.
+
+    Returns, per image pixel, the source-plane coordinates to gather from and a
+    magnification field. The SIS lens equation is ``beta = theta - theta_E *
+    theta_hat``: a source behind the lens is bent into an Einstein ring at
+    radius ``theta_E``; offset sources break into arcs + a counter-image. A mild
+    ``ellipticity`` turns the ring into the more realistic arc pair. Frame-
+    invariant (geometry only), so the renderer builds it once.
+    """
+    scale = min(width, height) / 2.0
+    cx = (width - 1) / 2.0 + center_x * scale
+    cy = (height - 1) / 2.0 + center_y * scale
+    yy, xx = np.indices((height, width), dtype=np.float32)
+    gx = (xx - cx) / scale
+    gy = (yy - cy) / scale
+
+    # rotate into the lens ellipse frame, stretch the deflection along one axis
+    ca, sa = math.cos(ellipticity_angle), math.sin(ellipticity_angle)
+    ex = gx * ca + gy * sa
+    ey = -gx * sa + gy * ca
+    r_ell = np.sqrt((ex * (1.0 + ellipticity)) ** 2 + (ey * (1.0 - ellipticity)) ** 2)
+    r = np.maximum(r_ell, 1e-4)
+
+    # SIS deflection has constant magnitude theta_E directed radially
+    factor = 1.0 - einstein_radius / r
+    beta_x = gx * factor
+    beta_y = gy * factor
+    src_x = (cx + beta_x * scale).astype(np.float32)
+    src_y = (cy + beta_y * scale).astype(np.float32)
+
+    # tangential magnification diverges at the critical curve r == theta_E; cap it
+    magnification = np.clip(1.0 / np.maximum(np.abs(1.0 - einstein_radius / r), 0.06), 0.0, 9.0)
+    return EinsteinLens(
+        src=(src_x, src_y),
+        magnification=magnification.astype(np.float32),
+        image_radius=np.sqrt(gx * gx + gy * gy).astype(np.float32),
+    )
+
+
 def build_deflection_lut(
     b_ph: float,
     lensing_strength: float,

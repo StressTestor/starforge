@@ -1,7 +1,7 @@
 [project]
 name = "starforge"
-version = "4.0.0"
-description = "Deterministic procedural black-hole lab with seeded structural genomes and gravitational disk lensing."
+version = "5.0.0"
+description = "Deterministic procedural gravitational-lensing art lab — seeded black holes and lensed galaxies."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
