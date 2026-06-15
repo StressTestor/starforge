@@ -4,6 +4,14 @@ most procedural art demos stop right before they become an artifact. and the see
 
 starforge lab is a deterministic python art machine for gravitational lensing. the seed drives real structure, not noise: position, tilt, banding, horizon size, lensing strength, palette temperature. it sweeps seeds and presets, scores them with inspectable composition metrics, exports a ranked collection, and renders a final poster plus animation/video. a good render is reproducible from its seed, not lucky.
 
+## gallery
+
+three sample renders, each reproducible from its seed, not picked from a noise lottery:
+
+| black-hole / event-horizon | black-hole / cold-singularity | lensed-galaxy / deep-field |
+| --- | --- | --- |
+| ![event horizon](docs/samples/black-hole-event-horizon.png) | ![cold singularity](docs/samples/black-hole-cold-singularity.png) | ![deep field](docs/samples/lensed-galaxy-deep-field.png) |
+
 ## subjects
 
 two subjects, picked with `--subject`:
