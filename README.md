@@ -107,6 +107,25 @@ generation is the single source of truth. the **curator only ranks** — so a sm
 
 ---
 
+## ✦ the selection studio
+
+here's the honest problem: "the lab picks the best" only ever meant "best by one hand-weighted number." and that number is mostly a contrast meter — so on a cross-subject sweep it ranks *every* black hole above *every* galaxy, because black holes have bright braids on a black shadow and galaxies are soft glows. it's a black-hole-picker wearing a quality costume.
+
+v7 fixes that. `--studio` writes a self-contained `studio.html` you open in any browser, offline:
+
+<div align="center">
+<img src="docs/samples/studio.png" width="780" alt="the selection studio: a compare grid with a Pareto frontier and per-subject de-biased ranking">
+</div>
+
+- **per-subject de-biased ranking** — every candidate is scored against others of its own subject, so the standout wormhole stops losing to a mediocre black hole.
+- **the Pareto frontier** — the non-dominated set across every metric. no single scalar can surface this; it's "the best of each kind, on its own terms."
+- **the metrics, exposed** — a bar per metric, a "leads on ring · color" tag, and a toggle between the de-biased view and the raw v6 scalar so you can see exactly where they disagree.
+- **pin what your eye likes** — pin or reject candidates and export a manifest. the machine sorts the frontier; you make the call.
+
+it's a read-only pass over the rendered artifacts, so it changes nothing about how a render is made. determinism stays sacred.
+
+---
+
 ## ✦ run it
 
 ```bash
@@ -159,6 +178,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. python3 -m starforge.cli --output release
 | `--seed-gallery` | candidates to score before the final render (single preset) |
 | `--batch` / `--top-k` | sweep across all presets, keep the best k |
 | `--cross-subject` | sweep every subject too and rank a mixed collection |
+| `--studio` | write `studio.html` — the offline compare grid with the Pareto frontier and de-biased ranking |
 | `--curator` | `heuristic` (contrast-led) or `studio` (rewards a clear focal subject) |
 | `--width`, `--height` | poster dimensions |
 | `--frames` | animation length |
@@ -175,6 +195,7 @@ a complete, self-contained release directory:
 | file | what |
 | --- | --- |
 | `index.html` | a local lab page for the finished release |
+| `studio.html` | the offline selection studio — frontier, de-biased ranking, pinning (with `--studio`) |
 | `starforge_poster.png` | the high-resolution poster |
 | `starforge.gif` | the animated loop preview |
 | `starforge.mp4` / `.webm` | cinematic loops, written through `ffmpeg` |

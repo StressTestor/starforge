@@ -11,13 +11,15 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from starforge import __version__
-from starforge.collection import CollectionResult, build_collection
+from starforge.collection import CollectionEntry, CollectionResult, build_collection
 from starforge.config import RenderConfig
 from starforge.curation import get_curator
 from starforge.gallery import SeedGalleryResult, build_seed_gallery, write_lab_page
 from starforge.genome import SUBJECT_NAMES, Genome
 from starforge.presets import PRESET_NAMES
 from starforge.renderer import StarforgeRenderer
+from starforge.selection import rank as rank_candidates
+from starforge.studio import StudioCandidate, build_studio_page
 from starforge.video import export_videos
 
 
@@ -37,6 +39,11 @@ def main(argv: list[str] | None = None) -> int:
         "--cross-subject",
         action="store_true",
         help="With --batch, sweep across every subject too and rank a mixed collection.",
+    )
+    parser.add_argument(
+        "--studio",
+        action="store_true",
+        help="With --batch, write studio.html: an offline compare grid with a Pareto frontier and per-subject de-biased ranking.",
     )
     parser.add_argument("--seed-gallery", type=int, default=0, help="Render this many candidate seeds and select the best.")
     parser.add_argument("--batch", type=int, default=0, help="Sweep this many seeds across all presets for a ranked collection.")
@@ -80,6 +87,10 @@ def main(argv: list[str] | None = None) -> int:
         selected_preset = winner.preset
         selected_subject = winner.genome.subject
 
+    studio_ranking: list[dict[str, object]] = []
+    if args.studio and collection is not None:
+        studio_ranking = write_studio_page(output, collection.all_entries, cross_subject=args.cross_subject)
+
     poster_config = RenderConfig(
         width=args.width,
         height=args.height,
@@ -120,6 +131,8 @@ def main(argv: list[str] | None = None) -> int:
         assets.append("seed_gallery.png")
     if collection is not None:
         assets.append("collection_gallery.png")
+    if studio_ranking:
+        assets.append("studio.html")
     if video_status.get("mp4") == "written":
         assets.append("starforge.mp4")
     if video_status.get("webm") == "written":
@@ -150,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
         "preview_height": anim_height,
         "seed_candidates": seed_candidates,
         "collection": [entry.to_manifest() for entry in collection.entries] if collection is not None else [],
+        "studio": studio_ranking,
         "batch": args.batch,
         "top_k": top_k,
         "curator": args.curator,
@@ -219,6 +233,44 @@ def make_contact_sheet(frames: list[Image.Image], seed: int, preset: str) -> Ima
         draw.rectangle((x, y, x + thumb_width - 1, y + thumb_height - 1), outline=(93, 148, 172))
 
     return sheet
+
+
+def write_studio_page(output: Path, entries: list[CollectionEntry], *, cross_subject: bool) -> list[dict[str, object]]:
+    """Write studio.html from a full collection sweep and return the de-biased
+    ranking (frontier + per-subject) for the manifest."""
+    candidates = [
+        StudioCandidate(
+            subject=entry.genome.subject,
+            preset=entry.preset,
+            seed=entry.seed,
+            raw_total=entry.score.total,
+            reasons=entry.score.reasons,
+            image=entry.image,
+        )
+        for entry in entries
+    ]
+    # rank once, share it between the HTML and the manifest.
+    ranked = rank_candidates(
+        [entry.score.reasons for entry in entries],
+        [entry.genome.subject for entry in entries],
+        raw_totals=[entry.score.total for entry in entries],
+    )
+    title = f"starforge studio // {'cross-subject ' if cross_subject else ''}sweep"
+    (output / "studio.html").write_text(build_studio_page(candidates, title=title, ranked=ranked))
+
+    return [
+        {
+            "subject": r.subject,
+            "preset": entries[r.index].preset,
+            "seed": entries[r.index].seed,
+            "raw_total": round(r.raw_total, 4),
+            "norm_total": round(r.norm_total, 4),
+            "frontier": r.frontier,
+            "subject_rank": r.subject_rank,
+            "why": list(r.why),
+        }
+        for r in ranked
+    ]
 
 
 def copy_project_files(output: Path, root: Path | None = None) -> None:

@@ -1,5 +1,16 @@
 # changelog
 
+## v7.0.0 - 2026-06-19
+
+starforge stopped pretending one number knows what's good.
+
+- **the selection studio.** `--studio` writes a self-contained, offline `studio.html`: a compare grid over the whole sweep with a **Pareto frontier** (the non-dominated set, which no scalar can surface), a **per-subject de-biased ranking**, the metrics exposed as bars, a raw-vs-de-biased sort toggle, and pin/reject with an exportable pins manifest. Read-only over the rendered artifacts, so it changes nothing about how a render is made.
+- **the bug it fixes.** the v6 scalar is mostly a contrast meter, so on a cross-subject sweep it ranked *every* black hole above *every* lensed galaxy — a black-hole-picker wearing a quality costume (confirmed by experiment: the four black holes took ranks 1-4, the five galaxies the bottom five). The studio's per-subject normalization scores each candidate against others of its own subject, so the standout wormhole stops losing to a mediocre black hole.
+- **new modules.** `starforge.selection` (pure, deterministic frontier + de-biased ranking) and `starforge.studio` (the HTML). `CollectionResult` now carries the full ranked sweep (`all_entries`) so the studio sees everything, not just the kept top-k. The manifest records the frontier ranking under `studio`.
+- **determinism untouched.** the studio is a read-only observer: zero pixel change, the pixel golden and RNG-order lock are unchanged, every existing render is byte-identical to v6. semver 7.0.0.
+
+deferred (a separate, pixel-changing decision): the dither / 16-bit floor and a blackbody spectral pass. those re-bless the golden; the studio does not. See ROADMAP.md.
+
 ## v6.0.0 - 2026-06-19
 
 starforge grew two more subjects and a second way to judge them.

@@ -42,6 +42,7 @@ def test_cli_writes_release_assets(tmp_path: Path) -> None:
             "4",
             "--supersample",
             "2",
+            "--studio",
             "--video",
             "--scale-preview",
         ],
@@ -61,6 +62,7 @@ def test_cli_writes_release_assets(tmp_path: Path) -> None:
     assert (output / "seed_gallery.png").is_file()
     assert (output / "collection_gallery.png").is_file()
     assert (output / "index.html").is_file()
+    assert (output / "studio.html").is_file()
     assert (output / "manifest.json").is_file()
 
     poster = Image.open(output / "starforge_poster.png")
@@ -98,6 +100,15 @@ def test_cli_writes_release_assets(tmp_path: Path) -> None:
     assert len(manifest["seed_candidates"]) == 4
     assert manifest["video"]["mp4"] == "written"
     assert manifest["video"]["webm"] == "written"
+
+    # the studio ranks the FULL sweep (all 8 batch candidates, not just top-k)
+    assert "studio.html" in manifest["assets"]
+    assert len(manifest["studio"]) == 8
+    assert any(row["frontier"] for row in manifest["studio"])
+    assert all("norm_total" in row and "subject_rank" in row and "why" in row for row in manifest["studio"])
+    studio_html = (output / "studio.html").read_text()
+    assert studio_html.startswith("<!doctype html>")
+    assert "data:image/png;base64," in studio_html  # self-contained
 
     html = (output / "index.html").read_text()
     assert "cold-singularity" in html

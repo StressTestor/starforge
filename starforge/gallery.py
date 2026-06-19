@@ -110,6 +110,14 @@ def write_lab_page(output: Path, manifest: dict[str, object]) -> Path:
         <img src="collection_gallery.png" alt="Ranked top collection">
       </section>
         """
+    studio_markup = ""
+    if "studio.html" in assets:
+        studio_markup = """
+      <section class="panel wide">
+        <h2>selection studio</h2>
+        <p style="margin:0;color:var(--muted)"><a href="studio.html" style="color:var(--accent);font-weight:700">open the studio &rarr;</a> &mdash; compare the whole sweep on the Pareto frontier and a per-subject de-biased ranking, then pin your picks.</p>
+      </section>
+        """
 
     html = f"""<!doctype html>
 <html lang="en">
@@ -176,6 +184,7 @@ def write_lab_page(output: Path, manifest: dict[str, object]) -> Path:
         <img src="seed_gallery.png" alt="Seed gallery">
       </section>
       {collection_markup}
+      {studio_markup}
       <section class="panel">
         <h2>animation samples</h2>
         <img src="starforge_contact_sheet.png" alt="Animation contact sheet">

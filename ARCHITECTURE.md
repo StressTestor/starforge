@@ -2,7 +2,7 @@
 
 ## project overview
 
-Starforge Lab v6 is a deterministic procedural gravitational-lensing art generator. From a seed it builds a structural genome and renders one of four subjects: a `black-hole` (an accretion disk whose far side lenses over the shadow, with an emergent photon ring), a `lensed-galaxy` (a foreground elliptical that bends a background galaxy field into Einstein rings and arcs), a `neutron-star` (a compact hot surface with two magnetic-pole hotspots and twin lighthouse beams that sweep as the star spins), or a `wormhole` (a strong throat lens that gathers a distinct far-universe field into the mouth, ringed by an Einstein ring). It ranks candidates through a pluggable curator (`heuristic` or `studio`), emits a ranked collection (optionally cross-subject), and packages a static HTML lab page with PNG/GIF/MP4/WebM assets.
+Starforge Lab v7 is a deterministic procedural gravitational-lensing art generator. From a seed it builds a structural genome and renders one of four subjects: a `black-hole` (an accretion disk whose far side lenses over the shadow, with an emergent photon ring), a `lensed-galaxy` (a foreground elliptical that bends a background galaxy field into Einstein rings and arcs), a `neutron-star` (a compact hot surface with two magnetic-pole hotspots and twin lighthouse beams that sweep as the star spins), or a `wormhole` (a strong throat lens that gathers a distinct far-universe field into the mouth, ringed by an Einstein ring). It ranks candidates through a pluggable curator (`heuristic` or `studio`), emits a ranked collection (optionally cross-subject), writes an offline selection studio (`--studio`: a `studio.html` with a Pareto frontier and per-subject de-biased ranking that fixes the v6 scalar's cross-subject contrast bias), and packages a static HTML lab page with PNG/GIF/MP4/WebM assets.
 
 ## stack and dependencies
 
@@ -39,6 +39,8 @@ Starforge Lab v6 is a deterministic procedural gravitational-lensing art generat
 │   ├── presets.py
 │   ├── renderer.py
 │   ├── scoring.py
+│   ├── selection.py
+│   ├── studio.py
 │   └── video.py
 ├── tests
 │   ├── _genome_golden_v4.json
@@ -55,6 +57,8 @@ Starforge Lab v6 is a deterministic procedural gravitational-lensing art generat
 │   ├── test_renderer.py
 │   ├── test_rng_isolation_v5.py
 │   ├── test_rng_order_lock_v5.py
+│   ├── test_selection_v7.py
+│   ├── test_studio_v7.py
 │   ├── test_subject_pulsar_v6.py
 │   ├── test_subject_v5.py
 │   └── test_subject_wormhole_v6.py
@@ -70,6 +74,7 @@ Starforge Lab v6 is a deterministic procedural gravitational-lensing art generat
 - Every non-black-hole subject draws its structure from a SEPARATE seeded rng stream (`_GALAXY_RNG_STREAM`, `_PULSAR_RNG_STREAM`, `_WORMHOLE_RNG_STREAM`) keyed `default_rng([seed, salt])`, so it never advances the locked black-hole genome order and adds no genome fields. `test_rng_isolation_v5` pins that every subject yields byte-identical RNG-derived genome fields. New subjects MUST follow this pattern (separate stream, no inserted genome draws).
 - `neutron-star` is a moving subject (the beam sweeps once per loop), so it carries its own frame-stability test at the real frame count with a smooth-motion bar plus an explicit loop-seam (wrap-around) check, not the near-static galaxy's 0.95. `wormhole`'s mouth is frame-invariant, so it holds galaxy-grade 0.95.
 - Curation has two members in `_CURATORS`: `heuristic` (contrast-led) and `studio` (rewards a clear focal subject + structure over raw contrast). Both are pure, offline, deterministic; a learned/CLIP ranker is the intended next drop-in. `collection.build_collection(..., subjects=[...])` sweeps multiple subjects (CLI `--cross-subject`); a single-subject sweep is byte-identical to the original preset-only sweep.
+- Selection is a THIRD layer, read-only over rendered candidates and separate from both generation and curation. `starforge.selection` (pure, deterministic) computes the Pareto frontier over the metric vector and a per-subject min-max normalized score — because the v6 scalar is a contrast meter (`tonal_range`-dominated) that buckets a cross-subject sweep by subject (all black holes outrank all galaxies regardless of quality). Per-subject normalization scores each candidate against others of its own subject; the frontier surfaces the non-dominated set no scalar can. `starforge.studio` renders a self-contained `studio.html` (embedded base64 thumbnails + client-side sort/filter/pin/export). `--studio` writes it from `CollectionResult.all_entries` (the FULL ranked sweep, not just top-k) and records the frontier ranking in the manifest under `studio`. Zero pixel change, zero RNG — determinism is untouched, so the pixel golden does not move.
 - The black-hole genome draw order is LOCKED. `subject` does not consume the RNG, and any new genome field must be drawn AFTER the existing sequence. `test_rng_order_lock_v5` pins it with a golden so a re-roll is caught immediately. `test_rng_isolation_v5` additionally pins that every `subject` yields byte-identical RNG-derived genome fields, so a new subject can never perturb the locked draw order.
 - Two regression nets guard byte-identity at different layers. `test_rng_order_lock_v5` pins the genome *macro params* (`tests/_genome_golden_v4.json`); `test_golden_pixels_v5` pins the rendered *pixels* (`tests/_pixel_golden_v5.json`, sha256 of small title-free renders for every subject). Pixel hashes are stored per-environment (platform/numpy/Pillow affect the low bits) and the test skips cleanly when the running environment has no committed golden, so it never reds CI on an unseen platform. Regenerate with `tools/regen_pixel_golden.py` after an intended visual change.
 - The package version is single-sourced as `starforge.__version__`; the CLI manifest reads it, and `test_cli` asserts it matches `pyproject.toml` so the two cannot drift.
@@ -120,6 +125,7 @@ GitHub Actions runs tests and a smoke render on push and pull request.
 | `starforge --output ../../outputs/starforge-galaxy --seed 323965 --preset deep-field --subject lensed-galaxy --batch 10 --top-k 6 --supersample 2 --video --scale-preview` | generate a lensed-galaxy release |
 | `starforge --output ../../outputs/starforge-pulsar --seed 260613 --preset cold-singularity --subject neutron-star --batch 10 --top-k 6` | generate a neutron-star release (`--subject wormhole` for a wormhole) |
 | `starforge --output ../../outputs/starforge-mixed --seed 260613 --batch 12 --top-k 6 --cross-subject --curator studio` | sweep every subject and rank a mixed collection with the studio curator |
+| `starforge --output ../../outputs/starforge-studio --seed 260613 --batch 16 --cross-subject --studio` | write `studio.html` — the offline frontier + de-biased compare grid over the whole sweep |
 | `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. pytest -p no:cacheprovider -v` | run tests without install |
 | `python3 tools/inspect_outputs.py ../../outputs/starforge` | inspect generated release |
 | `PYTHONPATH=. python3 tools/regen_pixel_golden.py` | regenerate the per-environment pixel golden after an intended visual change |

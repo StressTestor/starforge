@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -33,6 +33,7 @@ class CollectionEntry:
 class CollectionResult:
     entries: list[CollectionEntry]
     image: Image.Image
+    all_entries: list[CollectionEntry] = field(default_factory=list)  # full ranked sweep (studio input)
 
 
 def build_collection(
@@ -79,8 +80,13 @@ def build_collection(
         score = curator.score(image, genome)
         entries.append(CollectionEntry(seed=seed, preset=preset, score=score, genome=genome, image=image))
 
-    top_entries = sorted(entries, key=lambda entry: entry.score.total, reverse=True)[:top_k]
-    return CollectionResult(entries=top_entries, image=_contact_sheet(top_entries, thumb_width, thumb_height))
+    ranked = sorted(entries, key=lambda entry: entry.score.total, reverse=True)
+    top_entries = ranked[:top_k]
+    return CollectionResult(
+        entries=top_entries,
+        image=_contact_sheet(top_entries, thumb_width, thumb_height),
+        all_entries=ranked,
+    )
 
 
 def _contact_sheet(entries: list[CollectionEntry], thumb_width: int, thumb_height: int) -> Image.Image:
