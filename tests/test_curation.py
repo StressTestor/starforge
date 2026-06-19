@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw
 
 from starforge.config import RenderConfig
 from starforge.collection import build_collection
-from starforge.curation import Curator, HeuristicCurator, get_curator
+from starforge.curation import Curator, HeuristicCurator, StudioCurator, get_curator
 from starforge.genome import Genome
 from starforge.scoring import ScoreResult
 
@@ -24,6 +24,26 @@ def test_heuristic_curator_scores_with_color_harmony_reason() -> None:
     result = get_curator().score(image, Genome.from_seed(1, "neon-collapse"))
     assert isinstance(result, ScoreResult)
     assert "color_harmony" in result.reasons
+
+
+def test_studio_curator_is_registered_pure_and_focus_aware() -> None:
+    studio = get_curator("studio")
+    assert isinstance(studio, StudioCurator)
+    assert isinstance(studio, Curator)  # satisfies the protocol structurally
+
+    genome = Genome.from_seed(1, "neon-collapse")
+    # a framed subject (bright blob near the genome center) vs a flat field
+    focused = Image.new("RGB", (160, 160), (6, 8, 20))
+    ImageDraw.Draw(focused).ellipse((58, 58, 102, 102), fill=(245, 180, 90))
+    flat = Image.new("RGB", (160, 160), (40, 42, 58))
+
+    first = studio.score(focused, genome)
+    second = studio.score(focused, genome)
+    assert isinstance(first, ScoreResult)
+    assert first.total == second.total  # deterministic
+    assert "subject_focus" in first.reasons and "detail" in first.reasons
+    # the curator rewards a clear focal subject over a flat field
+    assert studio.score(focused, genome).total > studio.score(flat, genome).total
 
 
 def test_collection_accepts_a_custom_curator() -> None:

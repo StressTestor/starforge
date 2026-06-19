@@ -1,24 +1,29 @@
 # roadmap
 
-where starforge could go after v5. honest about what's a clean win and what's a research detour.
+where starforge could go after v6. honest about what's a clean win and what's a research detour.
+
+## shipped in v6
+
+the whole tractable, on-architecture bucket landed:
+
+- **neutron-star / pulsar** and **wormhole** subjects, both reusing the single-center lensing, each on its own rng stream so the locked black-hole genome never moves.
+- **studio curator** (`--curator studio`): a second deterministic, offline ranker that picks for a clear focal subject over raw contrast. the learned/CLIP ranker is still the eventual goal, but it needs a model, so it stays out of the offline core.
+- **cross-subject collection** (`--cross-subject`): the batch sweep now ranks a mixed gallery across every subject; a single-subject sweep stays byte-identical.
+
+what's left is the genuinely hard stuff below.
 
 ## the one decision that gates half of this
 
-v5's identity is the seamless loop. every animating term is `phase * tau`, so frame N meets frame 0, and the gif/mp4/webm all loop. anything with a beginning, middle, and end (a merger, a flythrough) is a different product. before building any motion feature, pick one: loops, films, or both. that fork decides whether the timeline ideas below are even compatible with the export and curator pipeline. it stays open on purpose.
+the seamless loop is starforge's identity. every animating term is `phase * tau`, so frame N meets frame 0, and the gif/mp4/webm all loop. anything with a beginning, middle, and end (a merger, a flythrough) is a different product. before building any motion feature, pick one: loops, films, or both. that fork decides whether the timeline ideas below are even compatible with the export and curator pipeline. it stays open on purpose.
 
-## v6 candidates, by payoff
+## v7 candidates, by payoff
 
-### tractable, on-architecture (do these first)
+### tractable, on-architecture
 
-the subject seam is in place and lensed-galaxy proved the pattern. more subjects that reuse the single-center lensing are cheap:
+the subject seam keeps paying off. more subjects that reuse the single-center lensing are still cheap:
 
-- **neutron star / pulsar**: no disk, a sharp hot surface, two magnetic-pole hotspots, a lighthouse beam that sweeps. loop-safe on `phase`.
-- **wormhole**: the two-mouth look. gather a *different* background field through a stronger deflection so the throat shows somewhere else. reuses the existing gather, no new physics.
-
-other clean wins:
-
-- **smarter curator.** the `Curator` interface shipped in v4; only the heuristic exists. a learned or CLIP aesthetic ranker drops in without touching reproducibility, because generation stays the source of truth and the chosen seed still re-renders byte-identically. this is the honest way to make "the lab picks the best" mean the best, not the contrastiest.
-- **cross-subject collection.** the batch sweep is single-subject. let it sweep subjects too and rank a mixed gallery.
+- **magnetar / flaring loops**: the pulsar surface plus animated magnetic-field arcs. loop-safe on `phase`, same separate-stream pattern.
+- **learned curator.** the `Curator` interface has two members now (`heuristic`, `studio`); a learned or CLIP aesthetic ranker still drops in without touching reproducibility. it stays out of the offline core only because it needs model weights, so it would ship as an optional extra, not a core dependency.
 
 ### needs the loop-vs-film decision first
 
@@ -26,7 +31,7 @@ other clean wins:
 
 ### research detour (isolate or skip)
 
-- **binary-merger subject.** the honest version needs true two-center lensing, where each hole bends the other's disk. there's no closed-form fold map for that, and ray-marching breaks the deterministic precompute architecture. a quick two-LUT fake renders two unrelated holes with no tidal bridge between them, which is exactly the hand-faked look this whole project exists to avoid. only worth doing behind a separate ray-tracing backend that never touches the v5 LUT/fold code, and not at the cost of the tractable wins above.
+- **binary-merger subject.** the honest version needs true two-center lensing, where each hole bends the other's disk. there's no closed-form fold map for that, and ray-marching breaks the deterministic precompute architecture. a quick two-LUT fake renders two unrelated holes with no tidal bridge between them, which is exactly the hand-faked look this whole project exists to avoid. only worth doing behind a separate ray-tracing backend that never touches the LUT/fold code, and not at the cost of the tractable wins above.
 
 ## non-negotiables for anything new
 

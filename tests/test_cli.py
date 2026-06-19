@@ -4,9 +4,14 @@ import json
 import os
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
+import pytest
 from PIL import Image, ImageSequence
+
+from starforge import __version__
+from starforge.cli import copy_project_files, make_contact_sheet
 
 
 def test_cli_writes_release_assets(tmp_path: Path) -> None:
@@ -68,6 +73,7 @@ def test_cli_writes_release_assets(tmp_path: Path) -> None:
     assert manifest["seed"] == 4242
     assert manifest["selected_seed"] in [entry["seed"] for entry in manifest["collection"]]
     assert manifest["project"] == "starforge-lab"
+    assert manifest["version"] == __version__
     assert manifest["preset"] == "cold-singularity"
     assert manifest["selected_preset"] in {"event-horizon", "neon-collapse", "cold-singularity", "solar-wound", "deep-field"}
     assert manifest["width"] == 192
@@ -99,3 +105,49 @@ def test_cli_writes_release_assets(tmp_path: Path) -> None:
     assert "seed_gallery.png" in html
     assert "collection_gallery.png" in html
     assert "starforge.mp4" in html
+
+
+def _make_source_tree(root: Path) -> None:
+    for name in ("starforge", "tests", "tools", ".github"):
+        (root / name).mkdir(parents=True)
+        (root / name / "sentinel.py").write_text("# keep me\n")
+    for name in ("README.md", "ARCHITECTURE.md", "pyproject.toml"):
+        (root / name).write_text(name)
+
+
+def test_copy_project_files_refuses_to_overwrite_source(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    _make_source_tree(src)
+
+    with pytest.raises(ValueError, match="refusing to write release into the source tree"):
+        copy_project_files(src, root=src)
+
+    # the guard must fire before any rmtree, so the source is untouched.
+    for name in ("starforge", "tests", "tools", ".github"):
+        assert (src / name / "sentinel.py").read_text() == "# keep me\n"
+
+
+def test_copy_project_files_writes_into_separate_dir(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    _make_source_tree(src)
+    dest = tmp_path / "release"
+    dest.mkdir()
+
+    copy_project_files(dest, root=src)
+
+    assert (dest / "starforge" / "sentinel.py").exists()
+    assert (dest / "tests" / "sentinel.py").exists()
+    assert (dest / "tools" / "sentinel.py").exists()
+    assert (dest / ".github" / "sentinel.py").exists()
+    assert (dest / "README.md").read_text() == "README.md"
+
+
+def test_make_contact_sheet_rejects_empty_frames() -> None:
+    with pytest.raises(ValueError, match="at least one frame"):
+        make_contact_sheet([], seed=1, preset="neon-collapse")
+
+
+def test_package_version_is_single_sourced_with_pyproject() -> None:
+    root = Path(__file__).resolve().parents[1]
+    project = tomllib.loads((root / "pyproject.toml").read_text())
+    assert project["project"]["version"] == __version__

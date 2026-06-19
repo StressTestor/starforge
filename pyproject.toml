@@ -1,12 +1,12 @@
 [project]
 name = "starforge"
-version = "5.0.0"
-description = "Deterministic procedural gravitational-lensing art lab — seeded black holes and lensed galaxies."
+version = "6.0.0"
+description = "Deterministic procedural gravitational-lensing art lab — seeded black holes, lensed galaxies, pulsars, and wormholes."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "numpy",
-  "pillow",
+  "numpy==2.4.2",
+  "pillow==12.1.0",
 ]
 
 [build-system]

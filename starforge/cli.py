@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+from starforge import __version__
 from starforge.collection import CollectionResult, build_collection
 from starforge.config import RenderConfig
 from starforge.curation import get_curator
@@ -31,7 +32,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--frames", type=int, default=42, help="Animation frame count.")
     parser.add_argument("--seed", type=int, default=260613, help="Deterministic render seed.")
     parser.add_argument("--preset", choices=PRESET_NAMES, default="neon-collapse", help="Named visual preset.")
-    parser.add_argument("--subject", choices=SUBJECT_NAMES, default="black-hole", help="Rendered subject (black-hole or lensed-galaxy).")
+    parser.add_argument("--subject", choices=SUBJECT_NAMES, default="black-hole", help=f"Rendered subject (one of: {', '.join(SUBJECT_NAMES)}).")
+    parser.add_argument(
+        "--cross-subject",
+        action="store_true",
+        help="With --batch, sweep across every subject too and rank a mixed collection.",
+    )
     parser.add_argument("--seed-gallery", type=int, default=0, help="Render this many candidate seeds and select the best.")
     parser.add_argument("--batch", type=int, default=0, help="Sweep this many seeds across all presets for a ranked collection.")
     parser.add_argument("--top-k", type=int, default=0, help="Keep this many ranked collection entries.")
@@ -53,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     seed_gallery: SeedGalleryResult | None = None
     selected_seed = args.seed
     selected_preset = args.preset
+    selected_subject = args.subject
     if args.seed_gallery:
         gallery_config = RenderConfig(width=320, height=440, seed=args.seed, frames=min(args.frames, 8), preset=args.preset, subject=args.subject)
         seed_gallery = build_seed_gallery(gallery_config, count=args.seed_gallery, thumb_width=220, curator=curator)
@@ -63,11 +70,15 @@ def main(argv: list[str] | None = None) -> int:
     top_k = args.top_k or min(9, args.batch or 0)
     if args.batch:
         collection_config = RenderConfig(width=320, height=440, seed=args.seed, frames=min(args.frames, 8), preset=args.preset, subject=args.subject)
-        collection = build_collection(collection_config, batch_count=args.batch, top_k=top_k, thumb_width=220, curator=curator)
+        subjects = list(SUBJECT_NAMES) if args.cross_subject else None
+        collection = build_collection(
+            collection_config, batch_count=args.batch, top_k=top_k, thumb_width=220, curator=curator, subjects=subjects
+        )
         collection.image.save(output / "collection_gallery.png", optimize=True)
         winner = collection.entries[0]
         selected_seed = winner.seed
         selected_preset = winner.preset
+        selected_subject = winner.genome.subject
 
     poster_config = RenderConfig(
         width=args.width,
@@ -75,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=selected_seed,
         frames=args.frames,
         preset=selected_preset,
-        subject=args.subject,
+        subject=selected_subject,
         supersample=args.supersample,
     )
     poster = StarforgeRenderer(poster_config).render_poster()
@@ -83,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     poster.save(poster_path, optimize=True)
 
     anim_width, anim_height = preview_dimensions(args.width, args.height, args.scale_preview)
-    animation_config = RenderConfig(width=anim_width, height=anim_height, seed=selected_seed, frames=args.frames, preset=selected_preset, subject=args.subject)
+    animation_config = RenderConfig(width=anim_width, height=anim_height, seed=selected_seed, frames=args.frames, preset=selected_preset, subject=selected_subject)
     frames = StarforgeRenderer(animation_config).render_animation_frames()
 
     gif_path = output / "starforge.gif"
@@ -122,13 +133,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     manifest = {
         "project": "starforge-lab",
-        "version": "5.0.0",
+        "version": __version__,
         "subject": args.subject,
+        "selected_subject": selected_subject,
+        "cross_subject": args.cross_subject,
         "seed": args.seed,
         "selected_seed": selected_seed,
         "preset": args.preset,
         "selected_preset": selected_preset,
-        "selected_genome": Genome.from_seed(selected_seed, selected_preset, args.subject).to_manifest(),
+        "selected_genome": Genome.from_seed(selected_seed, selected_preset, selected_subject).to_manifest(),
         "width": args.width,
         "height": args.height,
         "frames": args.frames,
@@ -174,6 +187,8 @@ def preview_dimensions(width: int, height: int, scale_preview: bool) -> tuple[in
 
 
 def make_contact_sheet(frames: list[Image.Image], seed: int, preset: str) -> Image.Image:
+    if not frames:
+        raise ValueError("make_contact_sheet requires at least one frame")
     samples = [frames[index] for index in np.linspace(0, len(frames) - 1, num=min(8, len(frames)), dtype=int)]
     thumb_width = 220
     thumb_height = max(64, round(thumb_width * samples[0].height / samples[0].width))
@@ -206,8 +221,18 @@ def make_contact_sheet(frames: list[Image.Image], seed: int, preset: str) -> Ima
     return sheet
 
 
-def copy_project_files(output: Path) -> None:
-    root = Path(__file__).resolve().parents[1]
+def copy_project_files(output: Path, root: Path | None = None) -> None:
+    root = Path(__file__).resolve().parents[1] if root is None else root.resolve()
+    out = output.resolve()
+    if out == root or any(
+        (root / name).resolve() == (out / name).resolve()
+        for name in ("starforge", "tests", "tools", ".github")
+    ):
+        raise ValueError(
+            f"refusing to write release into the source tree: --output {output} "
+            f"resolves onto the running starforge source at {root}; "
+            "point --output at a separate directory"
+        )
     for name in ("README.md", "ARCHITECTURE.md", "pyproject.toml"):
         source = root / name
         if source.exists():

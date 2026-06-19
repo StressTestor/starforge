@@ -42,6 +42,7 @@ def build_collection(
     top_k: int,
     thumb_width: int = 220,
     curator: Curator | None = None,
+    subjects: list[str] | None = None,
 ) -> CollectionResult:
     if batch_count < 1:
         raise ValueError("batch count must be at least 1")
@@ -52,11 +53,18 @@ def build_collection(
 
     if curator is None:
         curator = get_curator()
+    # default is the single-subject sweep. With one subject the (subject, preset,
+    # seed) sequence below is byte-identical to the original preset-only sweep, so
+    # existing single-subject collections are unchanged. A multi-subject list
+    # interleaves subjects (preset advances once per full subject cycle) to rank a
+    # mixed gallery.
+    subject_cycle = subjects if subjects else [config.subject]
     thumb_height = max(64, round(thumb_width * config.height / config.width))
     entries: list[CollectionEntry] = []
 
     for index in range(batch_count):
-        preset = PRESET_NAMES[index % len(PRESET_NAMES)]
+        subject = subject_cycle[index % len(subject_cycle)]
+        preset = PRESET_NAMES[(index // len(subject_cycle)) % len(PRESET_NAMES)]
         seed = config.seed + index * 7919
         thumb_config = RenderConfig(
             width=thumb_width,
@@ -64,10 +72,10 @@ def build_collection(
             seed=seed,
             frames=max(2, min(config.frames, 8)),
             preset=preset,
-            subject=config.subject,
+            subject=subject,
         )
         image = StarforgeRenderer(thumb_config).render_poster(include_title=False)
-        genome = Genome.from_seed(seed, preset, config.subject)
+        genome = Genome.from_seed(seed, preset, subject)
         score = curator.score(image, genome)
         entries.append(CollectionEntry(seed=seed, preset=preset, score=score, genome=genome, image=image))
 
@@ -97,7 +105,8 @@ def _contact_sheet(entries: list[CollectionEntry], thumb_width: int, thumb_heigh
         sheet.paste(entry.image, (x, y))
         draw.rectangle((x, y, x + thumb_width - 1, y + thumb_height - 1), outline=(255, 156, 74), width=2)
         draw.text((x + 7, y + 7), f"#{index + 1} {entry.seed}", font=small, fill=(240, 246, 248))
-        draw.text((x + 7, y + 21), entry.preset, font=small, fill=(184, 222, 230))
+        # show the subject too, so a cross-subject ranked gallery is readable
+        draw.text((x + 7, y + 21), f"{entry.genome.subject} // {entry.preset}", font=small, fill=(184, 222, 230))
         draw.text((x + 7, y + 35), f"{entry.score.total:.1f}", font=small, fill=(255, 198, 120))
 
     return sheet

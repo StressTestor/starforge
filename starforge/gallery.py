@@ -38,10 +38,6 @@ def candidate_seeds(base_seed: int, count: int) -> list[int]:
     return [base_seed + index * 7919 for index in range(count)]
 
 
-def score_image(image: Image.Image) -> float:
-    return get_curator().score(image, Genome.from_seed(0, "neon-collapse")).total
-
-
 def build_seed_gallery(
     config: RenderConfig, *, count: int, thumb_width: int = 220, curator: Curator | None = None
 ) -> SeedGalleryResult:

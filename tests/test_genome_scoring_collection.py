@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 
@@ -95,6 +96,22 @@ def test_collection_sweeps_presets_and_returns_ranked_top_k() -> None:
     assert all(entry.score.reasons for entry in result.entries)
 
 
+def test_single_subject_collection_unchanged_and_cross_subject_mixes() -> None:
+    config = RenderConfig(width=96, height=132, frames=3, seed=260613, preset="neon-collapse", subject="black-hole")
+
+    default = build_collection(config, batch_count=6, top_k=6, thumb_width=72)
+    explicit = build_collection(config, batch_count=6, top_k=6, thumb_width=72, subjects=["black-hole"])
+    # a one-subject sweep is byte-identical to the original preset-only sweep
+    assert [(e.seed, e.preset) for e in default.entries] == [(e.seed, e.preset) for e in explicit.entries]
+    assert [e.score.total for e in default.entries] == [e.score.total for e in explicit.entries]
+
+    mixed = build_collection(
+        config, batch_count=6, top_k=6, thumb_width=72, subjects=["black-hole", "lensed-galaxy"]
+    )
+    assert {e.genome.subject for e in mixed.entries} == {"black-hole", "lensed-galaxy"}
+    assert all(e.genome.seed == e.seed for e in mixed.entries)
+
+
 def test_package_has_console_script_and_ci_smoke_render() -> None:
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
 
@@ -106,3 +123,8 @@ def test_package_has_console_script_and_ci_smoke_render() -> None:
     assert "starforge" in text
     assert "--width 320" in text
     assert "--height 440" in text
+
+    # third-party actions are pinned to full commit SHAs, never mutable tags.
+    assert not re.findall(r"uses:\s*\S+@v\d", text), "ci actions must be pinned to commit SHAs"
+    assert re.search(r"uses:\s*actions/checkout@[0-9a-f]{40}", text)
+    assert re.search(r"uses:\s*actions/setup-python@[0-9a-f]{40}", text)

@@ -1,5 +1,17 @@
 # changelog
 
+## v6.0.0 - 2026-06-19
+
+starforge grew two more subjects and a second way to judge them.
+
+- **neutron-star subject.** a compact, limb-darkened hot surface with two magnetic-pole hotspots and twin lighthouse beams that sweep as the star spins. the sweep is periodic on `phase`, so the loop stays seamless. it reuses the single-center lensing to bend the background; all of its structure is drawn from a separate rng stream.
+- **wormhole subject.** a strong throat lens (the singular-isothermal-sphere gather, pushed harder) pulls a distinct far-universe field into the mouth, ringed by a bright Einstein ring. no new physics, just the existing gather aimed at a different background.
+- **studio curator.** a second deterministic, offline curator (`--curator studio`) that ranks for a clear, well-placed focal subject and real structure instead of raw contrast. the seam shipped in v4; this is the honest stepping stone toward a learned ranker without touching reproducibility.
+- **cross-subject collection.** `--cross-subject` makes the `--batch` sweep cross subjects too and rank a mixed gallery. a single-subject sweep stays byte-identical to before.
+- **determinism held.** the black-hole path is still byte-identical, the rng-order lock is green, and every new subject ships determinism, finiteness, and frame-stability tests. a new `test_rng_isolation` pins that no subject perturbs the locked genome. the pixel golden now covers all four subjects. semver 6.0.0, single-sourced from `starforge.__version__`.
+
+still deferred: a timeline / merger mode (would break the seamless-loop identity) and a true binary-merger subject (needs two-center lensing / ray-tracing, out of the single-center architecture). See ROADMAP.md.
+
 ## v5.0.0 - 2026-06-14
 
 starforge isn't only black holes now.

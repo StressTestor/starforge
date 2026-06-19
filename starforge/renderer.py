@@ -54,10 +54,12 @@ class StarforgeRenderer:
         # deliberate framing choice, not a side effect of the subject radius.
         self._frame_radius = np.sqrt(self._x**2 + self._y**2)
         self._vignette_mul = clamp01(1.18 - self._frame_radius * 0.55)[..., None].astype(np.float32)
-        if self.genome.subject == "lensed-galaxy":
-            self._build_galaxy()
-        else:
-            self._build_lensing()
+        builders = {
+            "lensed-galaxy": self._build_galaxy,
+            "neutron-star": self._build_pulsar,
+            "wormhole": self._build_wormhole,
+        }
+        builders.get(self.genome.subject, self._build_lensing)()
 
     # The disk's secondary image (over-shadow arc + under-curl) is the disk's own
     # emission re-gathered through a precomputed gravitational fold; the photon
@@ -226,6 +228,171 @@ class StarforgeRenderer:
         rgb = self._add_vignette(rgb)
         return self._finish_frame(self._to_image(rgb), rng, include_title)
 
+    # ---- neutron-star / pulsar subject --------------------------------------
+    # separate RNG stream so the locked black-hole genome order is never touched.
+    _PULSAR_RNG_STREAM = 0x4E53  # "NS"
+
+    def _build_pulsar(self) -> None:
+        """Frame-invariant setup for the neutron-star / pulsar subject: a compact
+        hot surface with two magnetic-pole hotspots and twin lighthouse beams that
+        sweep as the star rotates. The background is bent by the same single-center
+        lensing; all subject structure is drawn from a separate RNG stream."""
+        g = self.genome
+        rng = np.random.default_rng([self.config.seed, self._PULSAR_RNG_STREAM])
+        self._ns_radius = float(np.clip(g.horizon_radius * 0.9 + rng.uniform(-0.02, 0.03), 0.08, 0.18))
+        self._ns_chi = float(rng.uniform(0.55, 1.30))            # magnetic obliquity (rad)
+        self._ns_axis_phase = float(rng.uniform(0.0, math.tau))  # starting rotation azimuth
+        self._ns_beam_width = float(rng.uniform(0.16, 0.30))     # cone half-width (cos units)
+        self._ns_beam_len = float(rng.uniform(0.85, 1.40))       # beam screen falloff length
+        self._ns_spin = float(g.rotation_direction)
+        self._ns_surface_color = np.asarray((0.72, 0.84, 1.0), dtype=np.float32)
+        # hotspots read against the blue-white surface, so use a warm accent.
+        self._ns_spot_color = np.asarray(self.preset.accent, dtype=np.float32) / 255.0
+        self._ns_beam_color = np.asarray(self.preset.photon_color, dtype=np.float32)
+
+        # frame-invariant surface geometry: limb-darkened disk + thin atmosphere
+        r_norm = np.clip(self._radius / self._ns_radius, 0.0, 1.0)
+        self._ns_limb = np.sqrt(np.clip(1.0 - r_norm**2, 0.0, 1.0)).astype(np.float32)
+        self._ns_disk = (self._radius < self._ns_radius).astype(np.float32)
+        self._ns_disk_soft = np.exp(-((self._radius / (self._ns_radius * 0.95)) ** 4)).astype(np.float32)
+        self._ns_atmos = np.exp(-(((self._radius - self._ns_radius) / (self._ns_radius * 0.55)) ** 2)).astype(np.float32)
+
+    def _render_pulsar_frame(self, phase: float, frame_index: int, include_title: bool) -> Image.Image:
+        g = self.genome
+        rng = np.random.default_rng(self.config.seed + frame_index * 1009)
+
+        # background, lensed by the compact star
+        background = self._background_field(phase) * 0.7 + self._star_field(rng)
+        background = self._add_vignette(background)
+        lensed = apply_gravitational_lensing(
+            self._to_image(background),
+            strength=g.lensing_strength * 0.65,
+            event_horizon=self._ns_radius,
+            spin=lensing_spin_for_phase(phase) * g.rotation_direction,
+            center_x=g.center_x,
+            center_y=g.center_y,
+        )
+        rgb = np.asarray(lensed, dtype=np.float32) / 255.0
+
+        # hot surface: limb-darkened disk plus a thin atmosphere glow
+        surface = (0.42 + 0.58 * self._ns_limb) * self._ns_disk
+        rgb = rgb + (surface + 0.40 * self._ns_atmos)[..., None] * self._ns_surface_color * 1.6
+
+        # rotation: the magnetic axis (and its twin beams + pole hotspots) sweeps
+        # with phase. Period tau, so frame N meets frame 0 and the loop is seamless.
+        phi = self._ns_spin * phase * math.tau + self._ns_axis_phase
+        chi = self._ns_chi
+        radius = self._ns_radius
+        px = self._x - g.center_x
+        py = self._y - g.center_y
+        pr = np.sqrt(px * px + py * py) + 1e-6
+
+        spots = np.zeros_like(rgb)
+        beams = np.zeros_like(rgb)
+        # the two poles sit at +/- the magnetic axis, beaming in opposite directions
+        for sign in (1.0, -1.0):
+            mx = sign * math.sin(chi) * math.cos(phi)
+            my = sign * math.cos(chi)                  # rotation-axis (up) component
+            mz = sign * math.sin(chi) * math.sin(phi)  # toward-viewer component
+            # hotspot on the visible surface; +y is DOWN, so up is -y
+            hx = g.center_x + radius * mx
+            hy = g.center_y - radius * my
+            visible = np.clip(mz + 0.30, 0.0, 1.0)  # the front hemisphere shows the spot
+            d2 = (self._x - hx) ** 2 + (self._y - hy) ** 2
+            spot = np.exp(-d2 / (radius * 0.36) ** 2) * self._ns_disk_soft
+            spots += (spot * visible)[..., None] * self._ns_spot_color * 2.4
+
+            # lighthouse beam: a steady cone from the star along the screen-projected
+            # axis. Brightness eases with orientation (broadside fullest) but never
+            # flashes, so the sweep stays smooth and the loop seamless.
+            in_plane = math.hypot(mx, my)
+            if in_plane > 1e-3:
+                bx, by = mx / in_plane, -my / in_plane
+                align = (px * bx + py * by) / pr
+                cone = np.clip((align - (1.0 - self._ns_beam_width)) / self._ns_beam_width, 0.0, 1.0)
+                reach = np.clip(pr - radius * 0.7, 0.0, 1.0)
+                sweep = 0.55 + 0.45 * (1.0 - abs(mz))  # gentle, broadside brightest
+                beams += (cone * np.exp(-pr / self._ns_beam_len) * reach * sweep)[..., None] * self._ns_beam_color
+
+        rgb = rgb + spots + beams * 1.05
+        rgb = self._temperature_shift(rgb, amount=0.4)
+        rgb = self._add_vignette(rgb)
+        return self._finish_frame(self._to_image(rgb), rng, include_title)
+
+    # ---- wormhole subject ---------------------------------------------------
+    _WORMHOLE_RNG_STREAM = 0x5748  # "WH"
+    _WH_THROAT_BASE = 0.34
+    _WH_FAR_NEBULAE = 5
+
+    def _build_wormhole(self) -> None:
+        """Frame-invariant setup for the wormhole subject: a strong single-center
+        lens (the throat) gathers a *different* background field — the universe on
+        the other side — into the mouth, ringed by an Einstein ring where the two
+        skies meet. Reuses the SIS gather, no new physics; subject structure comes
+        from a separate RNG stream so the locked genome order is untouched."""
+        g = self.genome
+        rng = np.random.default_rng([self.config.seed, self._WORMHOLE_RNG_STREAM])
+        self._wh_throat = float(
+            np.clip(self._WH_THROAT_BASE + g.lensing_strength * 0.6 + rng.uniform(-0.03, 0.05), 0.26, 0.50)
+        )
+        ellipticity = float(rng.uniform(0.0, 0.12))
+        ellipticity_angle = float(g.disk_tilt * 1.5 + rng.uniform(-0.3, 0.3))
+        self._wh_lens = build_einstein_lens_map(
+            self.config.width,
+            self.config.height,
+            center_x=g.center_x,
+            center_y=g.center_y,
+            einstein_radius=self._wh_throat,
+            ellipticity=ellipticity,
+            ellipticity_angle=ellipticity_angle,
+        )
+        self._wh_rim_color = np.asarray(self.preset.photon_color, dtype=np.float32)
+        self._wh_rim_phase = float(rng.uniform(0.0, math.tau))
+
+        # the other side: a distinct, warmer far-universe plane (frame-invariant)
+        far = np.zeros((self.config.height, self.config.width, 3), dtype=np.float32)
+        for _ in range(self._WH_FAR_NEBULAE):
+            ang = float(rng.uniform(0.0, math.tau))
+            rad = float(rng.uniform(0.0, 0.9))
+            size = float(rng.uniform(0.18, 0.40))
+            hue = float(rng.uniform(0.0, 1.0))
+            bright = float(rng.uniform(0.40, 0.85))
+            color = np.asarray((0.96, 0.55 + 0.30 * hue, 0.28 + 0.40 * (1.0 - hue)), dtype=np.float32) * bright
+            d2 = (self._gx - rad * math.cos(ang)) ** 2 + (self._gy - rad * math.sin(ang)) ** 2
+            far += np.exp(-d2 / (size**2))[..., None] * color
+        # a dense far starfield, distinct from the near sky
+        field = rng.random((self.config.height, self.config.width), dtype=np.float32)
+        star = np.clip((field - 0.992) / 0.008, 0.0, 1.0)
+        far += star[..., None] * np.asarray((1.0, 0.95, 0.86), dtype=np.float32) * 1.3
+        self._wh_far = (far + 0.04).astype(np.float32)
+
+    def _render_wormhole_frame(self, phase: float, frame_index: int, include_title: bool) -> Image.Image:
+        rng = np.random.default_rng(self.config.seed + frame_index * 1009)
+
+        # the near sky: the local universe
+        near = self._background_field(phase) * 0.8 + self._star_field(rng)
+        near = self._add_vignette(near)
+
+        # the mouth: the far universe gathered through the strong throat lens
+        sx, sy = self._wh_lens.src
+        mag = self._wh_lens.magnification[..., None]
+        img_r = self._wh_lens.image_radius
+        far_lensed = _bilinear_sample_f(self._wh_far, sx, sy)
+
+        throat = self._wh_throat
+        aperture = np.clip(1.0 - img_r / throat, 0.0, 1.0) ** 0.7
+        mouth = far_lensed * (0.45 + 0.55 * mag) * aperture[..., None]
+
+        # the Einstein ring where the two skies meet, gently pulsing (loop-safe)
+        rim = np.exp(-(((img_r - throat) / (throat * 0.07)) ** 2))
+        rim_pulse = 0.85 + 0.15 * math.sin(phase * math.tau + self._wh_rim_phase)
+        rim_rgb = rim[..., None] * self._wh_rim_color * (1.7 * rim_pulse)
+
+        rgb = near * (1.0 - aperture)[..., None] + mouth + rim_rgb
+        rgb = self._temperature_shift(rgb, amount=0.35)
+        rgb = self._add_vignette(rgb)
+        return self._finish_frame(self._to_image(rgb), rng, include_title)
+
     def _finish_frame(self, image: Image.Image, rng: np.random.Generator, include_title: bool) -> Image.Image:
         """Shared post-processing tail for both subjects: bloom, pinprick stars,
         film grain, and the optional title overlay."""
@@ -263,9 +430,13 @@ class StarforgeRenderer:
         return frames
 
     def _render_frame(self, phase: float, frame_index: int, include_title: bool) -> Image.Image:
-        if self.genome.subject == "lensed-galaxy":
-            return self._render_galaxy_frame(phase, frame_index, include_title)
-        return self._render_blackhole_frame(phase, frame_index, include_title)
+        renderers = {
+            "lensed-galaxy": self._render_galaxy_frame,
+            "neutron-star": self._render_pulsar_frame,
+            "wormhole": self._render_wormhole_frame,
+        }
+        render = renderers.get(self.genome.subject, self._render_blackhole_frame)
+        return render(phase, frame_index, include_title)
 
     def _render_blackhole_frame(self, phase: float, frame_index: int, include_title: bool) -> Image.Image:
         rng = np.random.default_rng(self.config.seed + frame_index * 1009)
@@ -461,12 +632,15 @@ class StarforgeRenderer:
         margin = max(28, width // 22)
         title = self.preset.title if self.config.title == "STARFORGE" else self.config.title
         subtitle = f"seed {self.config.seed} // preset {self.config.preset} // tilt {self.genome.disk_tilt:+.2f} // lensing {self.genome.lensing_strength:.3f}"
-        descriptor = (
-            "GRAVITATIONAL LENSING  /  EINSTEIN RING"
-            if self.genome.subject == "lensed-galaxy"
-            else "GRAVITATIONAL DISK LENSING"
-        )
-        strip = f"STARFORGE LAB V5  /  {descriptor}"
+        from starforge import __version__
+
+        descriptors = {
+            "lensed-galaxy": "GRAVITATIONAL LENSING  /  EINSTEIN RING",
+            "neutron-star": "NEUTRON STAR  /  PULSAR BEAM",
+            "wormhole": "WORMHOLE  /  EINSTEIN-ROSEN THROAT",
+        }
+        descriptor = descriptors.get(self.genome.subject, "GRAVITATIONAL DISK LENSING")
+        strip = f"STARFORGE LAB V{__version__.split('.')[0]}  /  {descriptor}"
 
         title_box = draw.textbbox((0, 0), title, font=title_font)
         title_width = title_box[2] - title_box[0]

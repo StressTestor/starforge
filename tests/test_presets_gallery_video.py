@@ -8,9 +8,11 @@ import numpy as np
 from PIL import Image
 
 from starforge.config import RenderConfig
-from starforge.gallery import build_seed_gallery, candidate_seeds, score_image
+from starforge.gallery import build_seed_gallery, candidate_seeds
+from starforge.genome import Genome
 from starforge.lensing import apply_gravitational_lensing
 from starforge.presets import PRESET_NAMES, get_preset
+from starforge.scoring import score_composition
 from starforge.video import build_ffmpeg_command
 
 
@@ -71,7 +73,8 @@ def test_seed_gallery_selects_best_seed_deterministically() -> None:
     assert digest_image(first.image) == digest_image(second.image)
 
 
-def test_score_image_prefers_contrast_and_bright_ring() -> None:
+def test_score_composition_prefers_contrast_and_bright_ring() -> None:
+    genome = Genome.from_seed(1234, "neon-collapse")
     flat = Image.new("RGB", (96, 96), (20, 20, 20))
     contrast = Image.new("RGB", (96, 96), (20, 20, 20))
     pixels = contrast.load()
@@ -79,7 +82,7 @@ def test_score_image_prefers_contrast_and_bright_ring() -> None:
         for x in range(32, 64):
             pixels[x, y] = (240, 180, 90)
 
-    assert score_image(contrast) > score_image(flat)
+    assert score_composition(contrast, genome).total > score_composition(flat, genome).total
 
 
 def test_ffmpeg_command_is_explicit_for_mp4_and_webm() -> None:

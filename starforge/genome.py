@@ -9,7 +9,7 @@ from starforge.presets import get_preset
 # rendered subjects. black-hole is the default and its render path is unchanged
 # from v4; lensed-galaxy reuses the single-center lensing to bend a background
 # galaxy field into Einstein rings/arcs.
-SUBJECT_NAMES: tuple[str, ...] = ("black-hole", "lensed-galaxy")
+SUBJECT_NAMES: tuple[str, ...] = ("black-hole", "lensed-galaxy", "neutron-star", "wormhole")
 
 
 @dataclass(frozen=True)

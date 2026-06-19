@@ -20,8 +20,16 @@ class ScoreResult:
         }
 
 
-def score_composition(image: Image.Image, genome: Genome) -> ScoreResult:
-    arr = np.asarray(image.convert("RGB").resize((128, 128), Image.Resampling.BILINEAR), dtype=np.float32)
+def prepare_score_array(image: Image.Image) -> np.ndarray:
+    """The 128x128 float RGB array every scorer works from. Exposed so a curator
+    that needs its own pixel measures can compute it once and hand it to
+    ``score_composition`` instead of resizing the image twice."""
+    return np.asarray(image.convert("RGB").resize((128, 128), Image.Resampling.BILINEAR), dtype=np.float32)
+
+
+def score_composition(image: Image.Image, genome: Genome, *, arr: np.ndarray | None = None) -> ScoreResult:
+    if arr is None:
+        arr = prepare_score_array(image)
     luminance = arr[..., 0] * 0.2126 + arr[..., 1] * 0.7152 + arr[..., 2] * 0.0722
 
     tonal_range = float(np.percentile(luminance, 98) - np.percentile(luminance, 8))

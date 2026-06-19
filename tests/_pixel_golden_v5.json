@@ -1,0 +1,88 @@
+{
+  "environments": {
+    "Darwin-arm64-py3.14-numpy2.4.2-pillow12.1.0": {
+      "260613:neon-collapse:black-hole:160x220": "b2f4638a6dd018fe4f065a3b8d10b60dacc19b373cc9a85f6e1c8acc172bb3ef",
+      "260613:neon-collapse:lensed-galaxy:160x220": "96123743e2f8d7cb2fcaa68cfb26e18dc2856bfdcb8cfc8cdc6840d2ead391d2",
+      "260613:neon-collapse:neutron-star:160x220": "ade6426febd432de605addb95799bf0db8f70ec784d6776840e3b566095b354a",
+      "300208:solar-wound:lensed-galaxy:160x220": "9ebc932bc94a090d69762079a19db72c5641615b9e31c27f1e931300cbd4137a",
+      "323965:cold-singularity:lensed-galaxy:160x220": "4072ed5ad2ea0ba00b1eb9a022a5a16886045b874b7f57f328ab565cdda5ad7e",
+      "323965:deep-field:wormhole:160x220": "b4756b2a87f16fd0c008514b8863fabbf847cd4fe565017f1f8fec7de3a4ddd5",
+      "331884:cold-singularity:neutron-star:160x220": "f642090bfbc71c226a2af446e4be0e48e91df39bbedf10a1ae36a58a0020e8ba",
+      "331884:event-horizon:black-hole:160x220": "afc4c1c95e854e00ba06fcfb4e61e03f29b00dbcf870e3b7957430fef7f1073a",
+      "379398:deep-field:black-hole:160x220": "20a0318e04a562be5b85b545bca17d8ecb8fb4b843f6635661eccd639944df3f",
+      "379398:event-horizon:wormhole:160x220": "6ac581366a0b64a7f65cac5015d15225c8e0d7ba88911afdab0669597d4a21da"
+    }
+  },
+  "specs": [
+    {
+      "height": 220,
+      "preset": "neon-collapse",
+      "seed": 260613,
+      "subject": "black-hole",
+      "width": 160
+    },
+    {
+      "height": 220,
+      "preset": "event-horizon",
+      "seed": 331884,
+      "subject": "black-hole",
+      "width": 160
+    },
+    {
+      "height": 220,
+      "preset": "deep-field",
+      "seed": 379398,
+      "subject": "black-hole",
+      "width": 160
+    },
+    {
+      "height": 220,
+      "preset": "neon-collapse",
+      "seed": 260613,
+      "subject": "lensed-galaxy",
+      "width": 160
+    },
+    {
+      "height": 220,
+      "preset": "cold-singularity",
+      "seed": 323965,
+      "subject": "lensed-galaxy",
+      "width": 160
+    },
+    {
+      "height": 220,
+      "preset": "solar-wound",
+      "seed": 300208,
+      "subject": "lensed-galaxy",
+      "width": 160
+    },
+    {
+      "height": 220,
+      "preset": "neon-collapse",
+      "seed": 260613,
+      "subject": "neutron-star",
+      "width": 160
+    },
+    {
+      "height": 220,
+      "preset": "cold-singularity",
+      "seed": 331884,
+      "subject": "neutron-star",
+      "width": 160
+    },
+    {
+      "height": 220,
+      "preset": "deep-field",
+      "seed": 323965,
+      "subject": "wormhole",
+      "width": 160
+    },
+    {
+      "height": 220,
+      "preset": "event-horizon",
+      "seed": 379398,
+      "subject": "wormhole",
+      "width": 160
+    }
+  ]
+}
