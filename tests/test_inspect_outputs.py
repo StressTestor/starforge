@@ -55,6 +55,22 @@ def _write_release(release: Path, manifest: dict[str, object]) -> None:
     (release / "manifest.json").write_text(json.dumps(manifest))
 
 
+def test_inspect_accepts_a_plain_release_without_galleries(tmp_path) -> None:
+    # regression: a plain render (no --seed-gallery/--batch) writes no gallery PNGs,
+    # and inspect_outputs used to fail "missing seed_gallery.png" / "collection empty".
+    from starforge.cli import main
+
+    out = tmp_path / "plain"
+    assert main(["--output", str(out), "--width", "192", "--height", "256", "--frames", "3", "--seed", "260613"]) == 0
+
+    inspect = _load_inspect()
+    assert inspect.main([str(out)]) == 0
+    assert not (out / "seed_gallery.png").exists()
+    assert not (out / "collection_gallery.png").exists()
+    # the lab page must not reference assets it doesn't have (no broken <img>)
+    assert "seed_gallery.png" not in (out / "index.html").read_text()
+
+
 @pytest.mark.parametrize("missing", ["width", "height", "frames", "seed"])
 def test_inspect_reports_missing_manifest_key_cleanly(tmp_path, capsys, missing) -> None:
     inspect = _load_inspect()

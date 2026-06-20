@@ -1,0 +1,418 @@
+{
+  "assets": [
+    "starforge_poster.png",
+    "starforge.gif",
+    "starforge_contact_sheet.png",
+    "collection_gallery.png",
+    "studio.html",
+    "index.html"
+  ],
+  "batch": 8,
+  "collection": [
+    {
+      "genome": {
+        "background_twist": 0.252685,
+        "beaming_strength": 0.626421,
+        "center_x": -0.265273,
+        "center_y": 0.070791,
+        "color_temperature": -0.14158,
+        "disk_band_count": 13,
+        "disk_gap": 0.123929,
+        "disk_radius": 0.517154,
+        "disk_thickness": 0.412579,
+        "disk_tilt": -0.276215,
+        "disk_turbulence": 1.349346,
+        "horizon_radius": 0.168473,
+        "jet_angle": -0.231788,
+        "jet_asymmetry": 0.173838,
+        "jet_length": 0.867843,
+        "jet_width": 0.059224,
+        "lensing_strength": 0.222301,
+        "photon_radius": 0.222557,
+        "photon_tightness": 0.000556,
+        "preset": "neon-collapse",
+        "rotation_direction": -1,
+        "seed": 268532,
+        "subject": "black-hole"
+      },
+      "preset": "neon-collapse",
+      "score": {
+        "reasons": {
+          "busy_penalty": -0.0,
+          "color_harmony": 35.165,
+          "detail": 17.2982,
+          "focal_balance": 76.9104,
+          "subject_focus": 76.9603,
+          "thirds": 69.7836
+        },
+        "total": 156.2734
+      },
+      "seed": 268532
+    },
+    {
+      "genome": {
+        "background_twist": 0.468336,
+        "beaming_strength": 0.428082,
+        "center_x": -0.195035,
+        "center_y": 0.23768,
+        "color_temperature": 0.015716,
+        "disk_band_count": 8,
+        "disk_gap": 0.138157,
+        "disk_radius": 0.500283,
+        "disk_thickness": 0.337402,
+        "disk_tilt": -0.057544,
+        "disk_turbulence": 1.232947,
+        "horizon_radius": 0.18904,
+        "jet_angle": 0.010274,
+        "jet_asymmetry": -0.121669,
+        "jet_length": 1.202788,
+        "jet_width": 0.048776,
+        "lensing_strength": 0.196762,
+        "photon_radius": 0.247242,
+        "photon_tightness": 0.000595,
+        "preset": "event-horizon",
+        "rotation_direction": -1,
+        "seed": 260613,
+        "subject": "black-hole"
+      },
+      "preset": "event-horizon",
+      "score": {
+        "reasons": {
+          "busy_penalty": -0.0,
+          "color_harmony": 31.3574,
+          "detail": 15.7925,
+          "focal_balance": 68.3682,
+          "subject_focus": 75.7055,
+          "thirds": 77.0573
+        },
+        "total": 153.9018
+      },
+      "seed": 260613
+    },
+    {
+      "genome": {
+        "background_twist": 1.091502,
+        "beaming_strength": 0.855041,
+        "center_x": 0.186883,
+        "center_y": 0.235398,
+        "color_temperature": -0.026725,
+        "disk_band_count": 5,
+        "disk_gap": 0.138827,
+        "disk_radius": 0.448043,
+        "disk_thickness": 0.28611,
+        "disk_tilt": 0.072341,
+        "disk_turbulence": 0.780475,
+        "horizon_radius": 0.174161,
+        "jet_angle": 0.129141,
+        "jet_asymmetry": 0.280018,
+        "jet_length": 1.156841,
+        "jet_width": 0.054732,
+        "lensing_strength": 0.220222,
+        "photon_radius": 0.20513,
+        "photon_tightness": 0.000671,
+        "preset": "cold-singularity",
+        "rotation_direction": 1,
+        "seed": 316046,
+        "subject": "black-hole"
+      },
+      "preset": "cold-singularity",
+      "score": {
+        "reasons": {
+          "busy_penalty": -0.0,
+          "color_harmony": 45.7232,
+          "detail": 15.0133,
+          "focal_balance": 62.6614,
+          "subject_focus": 72.9582,
+          "thirds": 75.5754
+        },
+        "total": 151.2154
+      },
+      "seed": 316046
+    },
+    {
+      "genome": {
+        "background_twist": 1.15583,
+        "beaming_strength": 0.766211,
+        "center_x": -0.254552,
+        "center_y": -0.08143,
+        "color_temperature": -0.156883,
+        "disk_band_count": 7,
+        "disk_gap": 0.142106,
+        "disk_radius": 0.478222,
+        "disk_thickness": 0.304585,
+        "disk_tilt": -0.314027,
+        "disk_turbulence": 0.751363,
+        "horizon_radius": 0.17133,
+        "jet_angle": -0.193177,
+        "jet_asymmetry": -0.11597,
+        "jet_length": 0.749911,
+        "jet_width": 0.032149,
+        "lensing_strength": 0.189888,
+        "photon_radius": 0.216794,
+        "photon_tightness": 0.000599,
+        "preset": "solar-wound",
+        "rotation_direction": -1,
+        "seed": 284370,
+        "subject": "black-hole"
+      },
+      "preset": "solar-wound",
+      "score": {
+        "reasons": {
+          "busy_penalty": -0.0,
+          "color_harmony": 56.3358,
+          "detail": 14.3163,
+          "focal_balance": 78.2328,
+          "subject_focus": 59.9214,
+          "thirds": 68.3231
+        },
+        "total": 141.598
+      },
+      "seed": 284370
+    },
+    {
+      "genome": {
+        "background_twist": -0.50658,
+        "beaming_strength": 0.476477,
+        "center_x": 0.125809,
+        "center_y": -0.069283,
+        "color_temperature": 0.002491,
+        "disk_band_count": 10,
+        "disk_gap": 0.154255,
+        "disk_radius": 0.39109,
+        "disk_thickness": 0.238627,
+        "disk_tilt": 0.024097,
+        "disk_turbulence": 0.970633,
+        "horizon_radius": 0.152596,
+        "jet_angle": 0.04657,
+        "jet_asymmetry": -0.091382,
+        "jet_length": 0.892883,
+        "jet_width": 0.03114,
+        "lensing_strength": 0.17665,
+        "photon_radius": 0.185816,
+        "photon_tightness": 0.000442,
+        "preset": "neon-collapse",
+        "rotation_direction": 1,
+        "seed": 308127,
+        "subject": "black-hole"
+      },
+      "preset": "neon-collapse",
+      "score": {
+        "reasons": {
+          "busy_penalty": -0.0,
+          "color_harmony": 42.1655,
+          "detail": 12.3767,
+          "focal_balance": 55.7499,
+          "subject_focus": 67.6594,
+          "thirds": 68.6249
+        },
+        "total": 135.5491
+      },
+      "seed": 308127
+    },
+    {
+      "genome": {
+        "background_twist": 0.958044,
+        "beaming_strength": 0.498851,
+        "center_x": -0.251286,
+        "center_y": -0.2106,
+        "color_temperature": -0.008399,
+        "disk_band_count": 10,
+        "disk_gap": 0.125727,
+        "disk_radius": 0.516114,
+        "disk_thickness": 0.350085,
+        "disk_tilt": 0.055242,
+        "disk_turbulence": 1.327861,
+        "horizon_radius": 0.16328,
+        "jet_angle": 0.245312,
+        "jet_asymmetry": -0.335891,
+        "jet_length": 0.991409,
+        "jet_width": 0.041781,
+        "lensing_strength": 0.194842,
+        "photon_radius": 0.208228,
+        "photon_tightness": 0.000384,
+        "preset": "deep-field",
+        "rotation_direction": 1,
+        "seed": 292289,
+        "subject": "black-hole"
+      },
+      "preset": "deep-field",
+      "score": {
+        "reasons": {
+          "busy_penalty": -0.0,
+          "color_harmony": 42.3883,
+          "detail": 15.6049,
+          "focal_balance": 54.5834,
+          "subject_focus": 55.9691,
+          "thirds": 68.029
+        },
+        "total": 128.4856
+      },
+      "seed": 292289
+    }
+  ],
+  "cross_subject": false,
+  "curator": "studio",
+  "dependencies": {
+    "ffmpeg": "/opt/homebrew/bin/ffmpeg",
+    "numpy": "2.4.2",
+    "pillow": "12.1.0"
+  },
+  "frames": 42,
+  "generated_at": "2026-06-20T01:27:06.347928+00:00",
+  "height": 2200,
+  "preset": "neon-collapse",
+  "preview_height": 2200,
+  "preview_width": 1600,
+  "project": "starforge-lab",
+  "python": "3.14.3",
+  "seed": 260613,
+  "seed_candidates": [
+    {
+      "score": null,
+      "seed": 268532
+    }
+  ],
+  "selected_genome": {
+    "background_twist": 0.252685,
+    "beaming_strength": 0.626421,
+    "center_x": -0.265273,
+    "center_y": 0.070791,
+    "color_temperature": -0.14158,
+    "disk_band_count": 13,
+    "disk_gap": 0.123929,
+    "disk_radius": 0.517154,
+    "disk_thickness": 0.412579,
+    "disk_tilt": -0.276215,
+    "disk_turbulence": 1.349346,
+    "horizon_radius": 0.168473,
+    "jet_angle": -0.231788,
+    "jet_asymmetry": 0.173838,
+    "jet_length": 0.867843,
+    "jet_width": 0.059224,
+    "lensing_strength": 0.222301,
+    "photon_radius": 0.222557,
+    "photon_tightness": 0.000556,
+    "preset": "neon-collapse",
+    "rotation_direction": -1,
+    "seed": 268532,
+    "subject": "black-hole"
+  },
+  "selected_preset": "neon-collapse",
+  "selected_seed": 268532,
+  "selected_subject": "black-hole",
+  "studio": [
+    {
+      "frontier": true,
+      "norm_total": 3.9976,
+      "preset": "neon-collapse",
+      "raw_total": 156.2734,
+      "seed": 268532,
+      "subject": "black-hole",
+      "subject_rank": 1,
+      "why": [
+        "detail",
+        "subject_focus"
+      ]
+    },
+    {
+      "frontier": true,
+      "norm_total": 3.8121,
+      "preset": "event-horizon",
+      "raw_total": 153.9018,
+      "seed": 260613,
+      "subject": "black-hole",
+      "subject_rank": 2,
+      "why": [
+        "thirds",
+        "subject_focus"
+      ]
+    },
+    {
+      "frontier": true,
+      "norm_total": 3.8117,
+      "preset": "cold-singularity",
+      "raw_total": 151.2154,
+      "seed": 316046,
+      "subject": "black-hole",
+      "subject_rank": 3,
+      "why": [
+        "thirds",
+        "subject_focus"
+      ]
+    },
+    {
+      "frontier": true,
+      "norm_total": 3.5546,
+      "preset": "solar-wound",
+      "raw_total": 141.598,
+      "seed": 284370,
+      "subject": "black-hole",
+      "subject_rank": 4,
+      "why": [
+        "color_harmony",
+        "focal_balance"
+      ]
+    },
+    {
+      "frontier": false,
+      "norm_total": 2.1258,
+      "preset": "neon-collapse",
+      "raw_total": 135.5491,
+      "seed": 308127,
+      "subject": "black-hole",
+      "subject_rank": 7,
+      "why": [
+        "subject_focus",
+        "color_harmony"
+      ]
+    },
+    {
+      "frontier": true,
+      "norm_total": 2.284,
+      "preset": "deep-field",
+      "raw_total": 128.4856,
+      "seed": 292289,
+      "subject": "black-hole",
+      "subject_rank": 5,
+      "why": [
+        "detail",
+        "color_harmony"
+      ]
+    },
+    {
+      "frontier": false,
+      "norm_total": 1.6023,
+      "preset": "event-horizon",
+      "raw_total": 126.3426,
+      "seed": 300208,
+      "subject": "black-hole",
+      "subject_rank": 8,
+      "why": [
+        "detail",
+        "subject_focus"
+      ]
+    },
+    {
+      "frontier": false,
+      "norm_total": 2.28,
+      "preset": "cold-singularity",
+      "raw_total": 125.931,
+      "seed": 276451,
+      "subject": "black-hole",
+      "subject_rank": 6,
+      "why": [
+        "color_harmony",
+        "focal_balance"
+      ]
+    }
+  ],
+  "subject": "black-hole",
+  "supersample": 1,
+  "top_k": 6,
+  "version": "7.0.1",
+  "video": {
+    "mp4": "not requested",
+    "webm": "not requested"
+  },
+  "width": 1600
+}

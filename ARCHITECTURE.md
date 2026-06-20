@@ -4,6 +4,8 @@
 
 Starforge Lab v7 is a deterministic procedural gravitational-lensing art generator. From a seed it builds a structural genome and renders one of four subjects: a `black-hole` (an accretion disk whose far side lenses over the shadow, with an emergent photon ring), a `lensed-galaxy` (a foreground elliptical that bends a background galaxy field into Einstein rings and arcs), a `neutron-star` (a compact hot surface with two magnetic-pole hotspots and twin lighthouse beams that sweep as the star spins), or a `wormhole` (a strong throat lens that gathers a distinct far-universe field into the mouth, ringed by an Einstein ring). It ranks candidates through a pluggable curator (`heuristic` or `studio`), emits a ranked collection (optionally cross-subject), writes an offline selection studio (`--studio`: a `studio.html` with a Pareto frontier and per-subject de-biased ranking that fixes the v6 scalar's cross-subject contrast bias), and packages a static HTML lab page with PNG/GIF/MP4/WebM assets.
 
+The repository now also contains the first native macOS wrapper scaffold. The Swift app is a driver and viewer: it builds an argument vector, launches `python3 -m starforge.cli` as a subprocess, decodes the engine-owned `manifest.json`, and displays the written poster. It can fall back to the checkout's Python package for development, but the real bundle path is generated under `StarforgeLab/Resources`: BeeWare's relocatable `Python.xcframework`, a tiny `bin/python3` launcher, the upstream `engine/` copy, and a private `pysite/` with pinned NumPy/Pillow wheels.
+
 ## stack and dependencies
 
 | dependency | use |
@@ -14,6 +16,9 @@ Starforge Lab v7 is a deterministic procedural gravitational-lensing art generat
 | Pillow (pinned `==12.1.0`) | PNG/GIF writing, bloom, typography, galleries |
 | ffmpeg | optional MP4 and WebM export |
 | pytest | regression tests |
+| Swift 6 / SwiftPM | native macOS app scaffold and headless verification executable |
+| SwiftUI + Observation | macOS window, controls, and render state |
+| BeeWare Python-Apple-support 3.12-b9 | relocatable macOS `Python.xcframework` runtime for the app bundle |
 | GitHub Actions | CI test and smoke render |
 
 ## directory structure
@@ -26,6 +31,12 @@ Starforge Lab v7 is a deterministic procedural gravitational-lensing art generat
 ├── ARCHITECTURE.md
 ├── README.md
 ├── pyproject.toml
+├── Package.swift
+├── script
+│   └── build_and_run.sh
+├── scripts
+│   ├── parity_selftest.sh
+│   └── vendor_python.sh
 ├── starforge
 │   ├── __init__.py
 │   ├── cli.py
@@ -65,6 +76,41 @@ Starforge Lab v7 is a deterministic procedural gravitational-lensing art generat
 └── tools
     ├── inspect_outputs.py
     └── regen_pixel_golden.py
+├── StarforgeLab
+│   ├── App
+│   │   ├── StarforgeLab.entitlements
+│   │   └── Sources
+│   │       └── StarforgeLabApp.swift
+│   ├── Checks
+│   │   ├── Fixtures
+│   │   │   ├── full_manifest.json
+│   │   │   ├── plain_manifest.json
+│   │   │   └── studio_curator_manifest.json
+│   │   └── Sources
+│   │       └── main.swift
+│   ├── Parity
+│   │   └── Sources
+│   │       └── main.swift
+│   └── Packages
+│       ├── StarforgeCore
+│       │   └── Sources
+│       │       ├── Manifest.swift
+│       │       └── RenderRequest.swift
+│       ├── StarforgeEngine
+│       │   └── Sources
+│       │       ├── ArgumentBuilder.swift
+│       │       ├── EngineError.swift
+│       │       ├── EngineLocator.swift
+│       │       ├── RenderEvent.swift
+│       │       └── RenderService.swift
+│       └── StarforgePersistence
+│           └── Sources
+│               ├── HistoryStore.swift
+│               └── OutputLayout.swift
+│   ├── Resources
+│   │   └── README.md
+│   └── Support
+│       └── python_launcher.c
 ```
 
 ## key patterns
@@ -78,6 +124,11 @@ Starforge Lab v7 is a deterministic procedural gravitational-lensing art generat
 - The black-hole genome draw order is LOCKED. `subject` does not consume the RNG, and any new genome field must be drawn AFTER the existing sequence. `test_rng_order_lock_v5` pins it with a golden so a re-roll is caught immediately. `test_rng_isolation_v5` additionally pins that every `subject` yields byte-identical RNG-derived genome fields, so a new subject can never perturb the locked draw order.
 - Two regression nets guard byte-identity at different layers. `test_rng_order_lock_v5` pins the genome *macro params* (`tests/_genome_golden_v4.json`); `test_golden_pixels_v5` pins the rendered *pixels* (`tests/_pixel_golden_v5.json`, sha256 of small title-free renders for every subject). Pixel hashes are stored per-environment (platform/numpy/Pillow affect the low bits) and the test skips cleanly when the running environment has no committed golden, so it never reds CI on an unseen platform. Regenerate with `tools/regen_pixel_golden.py` after an intended visual change.
 - The package version is single-sourced as `starforge.__version__`; the CLI manifest reads it, and `test_cli` asserts it matches `pyproject.toml` so the two cannot drift.
+- `StarforgeCore.Manifest` mirrors `manifest.json` with `Codable` and `convertFromSnakeCase`; `SeedCandidate.score` intentionally re-encodes as JSON `null` so the plain-render fallback round-trips without dropping the key.
+- `StarforgeCore.RenderRequest.validated()` mirrors the Python bounds (`width`/`height` 64...5000, `frames` 2...180, `supersample` 1...3, preset/subject/curator membership) before the app shells out.
+- `StarforgeEngine.ArgumentBuilder` returns an argv array (`-m starforge.cli`, never a shell string). `RenderService` uses `EngineLocator`, which prefers bundled resources (`STARFORGE_BUNDLE_RESOURCES` or `Bundle.main.resourceURL`) before falling back to the checkout Python path.
+- `scripts/vendor_python.sh` regenerates the local runtime payload. The binary payload is ignored by git; the script downloads BeeWare Python-Apple-support 3.12-b9, compiles a universal launcher, downloads pinned architecture-specific wheels, copies the unmodified upstream engine, and writes `StarforgeLab/Resources/BUILDINFO`.
+- `StarforgeLabParity` is the §9.1 parity harness: render once through `RenderService`, render once through the same bundled CLI, then compare poster SHA-256 and `selected_genome`.
 - `lensed-galaxy` reuses the single-center lensing: `build_einstein_lens_map` is a singular-isothermal-sphere lens (`beta = theta - theta_E * theta_hat`) that gathers a deterministic background galaxy field built from a SEPARATE rng (so it never touches the black-hole draw order).
 - `StarforgeRenderer` returns Pillow images and does not write files. Generation is the single source of truth and stays byte-identical for a given (seed, preset, size).
 - Disk lensing lives in `starforge.lensing`: `build_deflection_lut` tabulates the bending angle (strong-deflection log divergence at the photon sphere, blended to a weak-field tail); `sample_emergent_ring` gathers the photon ring from that divergence; `build_disk_fold_map` precomputes the gravitational fold that lays the disk's far side as an arc over the shadow. All frame-invariant, built once in `StarforgeRenderer.__init__`.
@@ -94,7 +145,13 @@ None.
 
 ## environment variables
 
-None.
+| variable | purpose |
+| --- | --- |
+| `PYTHONPATH` | set by the macOS development runner/checks so `python3 -m starforge.cli` imports this checkout |
+| `PYTHONDONTWRITEBYTECODE` | avoids writing `__pycache__` during deterministic checks and app-driven renders |
+| `PYTHONHASHSEED` | set by the Swift engine locator as a belt-and-suspenders deterministic default |
+| `STARFORGE_ENGINE_ROOT` | optional Swift app development override for the checkout that contains `starforge/cli.py` |
+| `STARFORGE_BUNDLE_RESOURCES` | optional override pointing `EngineLocator` at generated app resources for parity and local bundle tests |
 
 ## deployment and infrastructure
 
@@ -105,6 +162,7 @@ GitHub Actions runs tests and a smoke render on push and pull request.
 | integration | purpose |
 | --- | --- |
 | `ffmpeg` binary | optional MP4/WebM loop export when `--video` is passed |
+| BeeWare Python-Apple-support | source for the generated app `Python.xcframework`; upstream docs describe the macOS package as relocatable and macOS as x86_64/arm64-capable |
 
 ## gotchas
 
@@ -115,6 +173,10 @@ GitHub Actions runs tests and a smoke render on push and pull request.
 - The poster can be high-resolution; animation and video generation are intentionally scaled by `--scale-preview`.
 - Pillow font availability differs by machine. The renderer uses macOS fonts when available and falls back to Pillow defaults.
 - `copy_project_files` refuses to run when `--output` resolves onto the running source tree (it would `rmtree` the live `starforge/`, `tests/`, `tools/`, `.github/`). Point `--output` at a dedicated release directory. The function takes an optional `root` so the guard is testable without touching the real repo.
+- `tools/inspect_outputs.py` and `index.html` are upstream v7.0.1 behavior: optional assets are validated and rendered from `manifest.assets`, so plain releases do not require or reference `seed_gallery.png`.
+- `--studio --curator studio` is valid in v7.0.1. The selector and studio bars are data-driven over the curator's reason keys; `StarforgeLab/Checks/Fixtures/studio_curator_manifest.json` pins this schema path.
+- PyPI does not publish universal2 `numpy==2.4.2` / `pillow==12.1.0` wheels for CPython 3.12. `scripts/vendor_python.sh` currently vendors the pinned wheel for the host architecture (arm64 here). The launcher and Python framework are universal, but the wheel payload still needs a wheel-merge/build step before M5 universal2 can be marked green.
+- The current Swift app scaffold is not the final signed product. It does not yet have app icons, WKWebView studio bridging, notarization scripts, Developer ID signing, or an Xcode project.
 
 ## commands
 
@@ -129,8 +191,13 @@ GitHub Actions runs tests and a smoke render on push and pull request.
 | `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. pytest -p no:cacheprovider -v` | run tests without install |
 | `python3 tools/inspect_outputs.py ../../outputs/starforge` | inspect generated release |
 | `PYTHONPATH=. python3 tools/regen_pixel_golden.py` | regenerate the per-environment pixel golden after an intended visual change |
+| `swift build` | build the SwiftPM macOS app scaffold and support modules |
+| `swift run StarforgeLabChecks` | run headless Swift schema and argument-builder checks against real CLI-generated manifests |
+| `./scripts/vendor_python.sh` | regenerate the local bundled Python 3.12 runtime, app launcher, pinned wheels, and upstream engine copy |
+| `./scripts/parity_selftest.sh` | run the bundled-interpreter app-vs-CLI parity check |
+| `./script/build_and_run.sh` | build and launch the SwiftPM-staged macOS app bundle |
+| `./script/build_and_run.sh --verify` | build, stage `StarforgeLab.app`, copy generated resources when present, launch the app executable, and verify the process exists |
 
 ## last-updated
 
-2026-06-19
-
+2026-06-20

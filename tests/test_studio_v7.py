@@ -62,3 +62,23 @@ def test_studio_default_order_is_debiased_not_subject_bucketed() -> None:
 def test_studio_rejects_empty() -> None:
     with pytest.raises(ValueError):
         build_studio_page([])
+
+
+def test_studio_page_renders_studio_curator_metrics() -> None:
+    # regression: the studio curator's reasons (subject_focus/detail) used to crash
+    # the bars (which hardcoded the heuristic metric set). They must render now.
+    def cand(subject, preset, seed, sf, det, th, fb, ch, bp, rgb) -> StudioCandidate:
+        return StudioCandidate(
+            subject=subject, preset=preset, seed=seed, raw_total=sf + det + th,
+            reasons={"subject_focus": sf, "detail": det, "thirds": th, "focal_balance": fb, "color_harmony": ch, "busy_penalty": bp},
+            image=Image.new("RGB", (20, 28), rgb),
+        )
+
+    cands = [
+        cand("black-hole", "event-horizon", 1, 80, 30, 70, 60, 40, 0, (200, 120, 40)),
+        cand("wormhole", "solar-wound", 2, 55, 20, 60, 50, 44, 0, (200, 90, 60)),
+    ]
+    html = build_studio_page(cands)  # must not KeyError on tonal_range
+    assert html.startswith("<!doctype html>")
+    assert html.count('class="card"') == 2
+    assert "focus" in html and "detail" in html  # studio metric labels rendered, not the heuristic set

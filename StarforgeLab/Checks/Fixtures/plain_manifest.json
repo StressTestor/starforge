@@ -1,0 +1,70 @@
+{
+  "assets": [
+    "starforge_poster.png",
+    "starforge.gif",
+    "starforge_contact_sheet.png",
+    "index.html"
+  ],
+  "batch": 0,
+  "collection": [],
+  "cross_subject": false,
+  "curator": "heuristic",
+  "dependencies": {
+    "ffmpeg": "/opt/homebrew/bin/ffmpeg",
+    "numpy": "2.4.2",
+    "pillow": "12.1.0"
+  },
+  "frames": 2,
+  "generated_at": "2026-06-20T01:25:21.007456+00:00",
+  "height": 96,
+  "preset": "neon-collapse",
+  "preview_height": 96,
+  "preview_width": 96,
+  "project": "starforge-lab",
+  "python": "3.14.3",
+  "seed": 260613,
+  "seed_candidates": [
+    {
+      "score": null,
+      "seed": 260613
+    }
+  ],
+  "selected_genome": {
+    "background_twist": 1.549969,
+    "beaming_strength": 0.504933,
+    "center_x": 0.318209,
+    "center_y": 0.075099,
+    "color_temperature": 0.086178,
+    "disk_band_count": 11,
+    "disk_gap": 0.126948,
+    "disk_radius": 0.483976,
+    "disk_thickness": 0.309036,
+    "disk_tilt": 0.106646,
+    "disk_turbulence": 1.128221,
+    "horizon_radius": 0.146234,
+    "jet_angle": 0.263007,
+    "jet_asymmetry": -0.299138,
+    "jet_length": 0.833249,
+    "jet_width": 0.052017,
+    "lensing_strength": 0.137361,
+    "photon_radius": 0.208221,
+    "photon_tightness": 0.00071,
+    "preset": "neon-collapse",
+    "rotation_direction": 1,
+    "seed": 260613,
+    "subject": "black-hole"
+  },
+  "selected_preset": "neon-collapse",
+  "selected_seed": 260613,
+  "selected_subject": "black-hole",
+  "studio": [],
+  "subject": "black-hole",
+  "supersample": 1,
+  "top_k": 0,
+  "version": "7.0.1",
+  "video": {
+    "mp4": "not requested",
+    "webm": "not requested"
+  },
+  "width": 96
+}
