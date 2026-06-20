@@ -18,7 +18,7 @@ from html import escape
 
 from PIL import Image
 
-from starforge.selection import METRIC_KEYS, Ranked, rank, subject_scaled
+from starforge.selection import Ranked, metric_keys, rank, subject_scaled
 
 _METRIC_LABEL = {
     "tonal_range": "tonal",
@@ -27,6 +27,8 @@ _METRIC_LABEL = {
     "ring_separation": "ring",
     "color_harmony": "color",
     "busy_penalty": "busy",
+    "subject_focus": "focus",
+    "detail": "detail",
 }
 
 
@@ -50,19 +52,19 @@ def _png_data_uri(image: Image.Image) -> str:
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
-def _bars(reasons: dict[str, float], scaled: dict[str, float]) -> str:
+def _bars(reasons: dict[str, float], scaled: dict[str, float], keys: tuple[str, ...]) -> str:
     rows = []
-    for key in METRIC_KEYS:
+    for key in keys:
         pct = max(0.0, min(1.0, scaled[key])) * 100.0
         rows.append(
-            f'<div class="bar"><span class="bl">{_METRIC_LABEL[key]}</span>'
+            f'<div class="bar"><span class="bl">{_METRIC_LABEL.get(key, key)}</span>'
             f'<span class="bt"><span class="bf" style="width:{pct:.1f}%"></span></span>'
             f'<span class="bv">{reasons[key]:.0f}</span></div>'
         )
     return "".join(rows)
 
 
-def _card(candidate: StudioCandidate, ranked: Ranked, scaled: dict[str, float]) -> str:
+def _card(candidate: StudioCandidate, ranked: Ranked, scaled: dict[str, float], keys: tuple[str, ...]) -> str:
     why = " · ".join(_METRIC_LABEL.get(metric, metric) for metric in ranked.why)
     frontier = "★ frontier" if ranked.frontier else ""
     return (
@@ -79,7 +81,7 @@ def _card(candidate: StudioCandidate, ranked: Ranked, scaled: dict[str, float]) 
         f"<b>{ranked.norm_total:.2f}</b></span>"
         f'<span title="raw v6 scalar">raw {ranked.raw_total:.0f}</span></div>'
         f'<div class="why">leads on <b>{escape(why)}</b></div>'
-        f'<div class="bars">{_bars(candidate.reasons, scaled)}</div>'
+        f'<div class="bars">{_bars(candidate.reasons, scaled, keys)}</div>'
         f'<div class="actions"><button class="pin" data-act="pin">pin</button>'
         f'<button class="rej" data-act="reject">reject</button></div>'
         f"</div></article>"
@@ -94,18 +96,21 @@ def build_studio_page(
 
     rows = [c.reasons for c in candidates]
     subjects = [c.subject for c in candidates]
+    # the metrics are data-driven (heuristic and studio curators emit different
+    # reason sets), and the bars/scale/rank must all agree on the same set.
+    keys = metric_keys(rows)
     # the caller (CLI) computes the ranking once and shares it for the manifest;
     # fall back to computing it here when called standalone.
     if ranked is None:
-        ranked = rank(rows, subjects, raw_totals=[c.raw_total for c in candidates])
-    scaled = subject_scaled(rows, subjects)
+        ranked = rank(rows, subjects, raw_totals=[c.raw_total for c in candidates], keys=keys)
+    scaled = subject_scaled(rows, subjects, keys)
 
     # default presentation order: de-biased quality, then raw, then key (stable)
     order = sorted(
         range(len(candidates)),
         key=lambda i: (-ranked[i].norm_total, -ranked[i].raw_total, candidates[i].key),
     )
-    cards = "".join(_card(candidates[i], ranked[i], scaled[i]) for i in order)
+    cards = "".join(_card(candidates[i], ranked[i], scaled[i], keys) for i in order)
 
     subjects_present = sorted({c.subject for c in candidates})
     frontier_count = sum(1 for r in ranked if r.frontier)

@@ -20,8 +20,11 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
-# every scoring reason, all oriented "higher is better" (busy_penalty is already
-# signed, so less-negative is better and it composes directly).
+# the heuristic curator's reason set (all oriented "higher is better" — busy_penalty
+# is already signed, so less-negative is better and it composes directly). This is
+# only the DEFAULT reference set: the studio curator emits a different set, so the
+# selection functions derive the actual metrics from the candidate rows (see
+# metric_keys) rather than assuming these.
 METRIC_KEYS: tuple[str, ...] = (
     "tonal_range",
     "thirds",
@@ -30,6 +33,22 @@ METRIC_KEYS: tuple[str, ...] = (
     "color_harmony",
     "busy_penalty",
 )
+
+
+def metric_keys(rows: list[dict[str, float]]) -> tuple[str, ...]:
+    """The metrics to rank on, derived from the candidate rows — the reasons every
+    row shares, in the first row's order. Different curators emit different reason
+    sets (heuristic vs studio), so the metrics are data-driven, not hardcoded."""
+    if not rows:
+        return ()
+    common = set(rows[0])
+    for row in rows[1:]:
+        common &= set(row)
+    return tuple(key for key in rows[0] if key in common)
+
+
+def _resolve_keys(rows: list[dict[str, float]], keys: tuple[str, ...] | None) -> tuple[str, ...]:
+    return keys if keys is not None else metric_keys(rows)
 
 
 @dataclass(frozen=True)
@@ -48,8 +67,9 @@ def _dominates(a: dict[str, float], b: dict[str, float], keys: tuple[str, ...]) 
     return all(a[k] >= b[k] - 1e-9 for k in keys) and any(a[k] > b[k] + 1e-9 for k in keys)
 
 
-def pareto_frontier(rows: list[dict[str, float]], keys: tuple[str, ...] = METRIC_KEYS) -> list[bool]:
+def pareto_frontier(rows: list[dict[str, float]], keys: tuple[str, ...] | None = None) -> list[bool]:
     """Per-row flag: True if no other row dominates it (the non-dominated set)."""
+    keys = _resolve_keys(rows, keys)
     n = len(rows)
     return [not any(_dominates(rows[j], rows[i], keys) for j in range(n) if j != i) for i in range(n)]
 
@@ -74,11 +94,11 @@ def _minmax_within_subject(
 
 
 def subject_scaled(
-    rows: list[dict[str, float]], subjects: list[str], keys: tuple[str, ...] = METRIC_KEYS
+    rows: list[dict[str, float]], subjects: list[str], keys: tuple[str, ...] | None = None
 ) -> list[dict[str, float]]:
     """Public view of each metric scaled to [0, 1] within its subject — the
     de-biased values the studio draws as bars."""
-    return _minmax_within_subject(rows, subjects, keys)
+    return _minmax_within_subject(rows, subjects, _resolve_keys(rows, keys))
 
 
 def rank(
@@ -86,14 +106,17 @@ def rank(
     subjects: list[str],
     *,
     raw_totals: list[float],
-    keys: tuple[str, ...] = METRIC_KEYS,
+    keys: tuple[str, ...] | None = None,
 ) -> list[Ranked]:
     """Rank a candidate set. ``rows`` are the per-metric reason dicts, ``subjects``
     the parallel subject list, ``raw_totals`` the v6 scalar per row (kept for
-    reference). Returns one ``Ranked`` per input row, in input order."""
+    reference). The metrics are derived from the rows unless ``keys`` is given, so
+    any curator's reason set works. Returns one ``Ranked`` per input row, in input
+    order."""
     if not (len(rows) == len(subjects) == len(raw_totals)):
         raise ValueError("rows, subjects, and raw_totals must be the same length")
 
+    keys = _resolve_keys(rows, keys)
     frontier = pareto_frontier(rows, keys)
     scaled = _minmax_within_subject(rows, subjects, keys)
     norm_totals = [sum(scaled[i][k] for k in keys) for i in range(len(rows))]

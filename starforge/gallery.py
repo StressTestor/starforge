@@ -110,6 +110,14 @@ def write_lab_page(output: Path, manifest: dict[str, object]) -> Path:
         <img src="collection_gallery.png" alt="Ranked top collection">
       </section>
         """
+    seed_gallery_markup = ""
+    if "seed_gallery.png" in assets:
+        seed_gallery_markup = """
+      <section class="panel">
+        <h2>seed sweep</h2>
+        <img src="seed_gallery.png" alt="Seed gallery">
+      </section>
+        """
     studio_markup = ""
     if "studio.html" in assets:
         studio_markup = """
@@ -179,10 +187,7 @@ def write_lab_page(output: Path, manifest: dict[str, object]) -> Path:
       <section class="panel">
         <img class="poster" src="starforge_poster.png" alt="Starforge poster">
       </section>
-      <section class="panel">
-        <h2>seed sweep</h2>
-        <img src="seed_gallery.png" alt="Seed gallery">
-      </section>
+      {seed_gallery_markup}
       {collection_markup}
       {studio_markup}
       <section class="panel">

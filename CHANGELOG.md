@@ -1,5 +1,15 @@
 # changelog
 
+## v7.0.1 - 2026-06-19
+
+three real bugs, surfaced by an external integration consuming the engine contract.
+
+- **`--studio --curator studio` no longer crashes.** The studio curator emits a different reason set (`subject_focus`, `detail`, …) than the heuristic, but the selection frontier + studio bars hardcoded the heuristic's `METRIC_KEYS` and `KeyError`'d on `tonal_range`. The metric set is now **data-driven** (`selection.metric_keys` derives it from the candidate rows), so any curator's reasons rank and render. Studio metric labels gained `focus`/`detail`, with a fallback for unknown keys.
+- **plain releases pass `inspect_outputs.py`.** The validator required `seed_gallery.png` / `collection_gallery.png` (and a non-empty collection) unconditionally, so a plain render — no `--seed-gallery`/`--batch` — failed validation. It now reads the manifest first and validates each release against its OWN declared `assets`.
+- **the lab page stops referencing assets it doesn't have.** `index.html` always emitted a `seed_gallery.png` `<img>`; a plain release had a broken image. The seed-sweep panel is now conditional on the asset being present, like the collection/studio/video panels.
+
+Renders are byte-identical to v7.0.0 (these are read-only/tooling paths). semver 7.0.1.
+
 ## v7.0.0 - 2026-06-19
 
 starforge stopped pretending one number knows what's good.

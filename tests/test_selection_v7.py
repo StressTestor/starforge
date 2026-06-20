@@ -77,3 +77,24 @@ def test_rank_validates_lengths() -> None:
 
     with pytest.raises(ValueError):
         rank([BH1, BH2], ["black-hole"], raw_totals=[1.0, 2.0])
+
+
+def test_metrics_are_data_driven_for_any_curator() -> None:
+    # the studio curator emits a DIFFERENT reason set than the heuristic; selection
+    # must derive the metrics from the rows, not assume tonal_range/ring_separation
+    # (regression: --studio --curator studio used to KeyError on 'tonal_range').
+    from starforge.selection import metric_keys
+
+    studio_keys = ("subject_focus", "detail", "thirds", "focal_balance", "color_harmony", "busy_penalty")
+    rows = [
+        {"subject_focus": 80, "detail": 30, "thirds": 70, "focal_balance": 60, "color_harmony": 40, "busy_penalty": 0},
+        {"subject_focus": 40, "detail": 20, "thirds": 50, "focal_balance": 45, "color_harmony": 35, "busy_penalty": -5},
+        {"subject_focus": 60, "detail": 25, "thirds": 76, "focal_balance": 50, "color_harmony": 44, "busy_penalty": 0},
+    ]
+    subjects = ["black-hole", "black-hole", "lensed-galaxy"]
+
+    assert metric_keys(rows) == studio_keys  # derived from the data, in row order
+    ranked = rank(rows, subjects, raw_totals=[1.0, 2.0, 3.0])  # no keys arg -> derive, must not KeyError
+    assert len(ranked) == 3
+    assert any(r.frontier for r in ranked)
+    assert all("tonal_range" not in r.why for r in ranked)  # the heuristic set is not assumed
