@@ -1,0 +1,201 @@
+{
+  "assets": [
+    "starforge_poster.png",
+    "starforge.gif",
+    "starforge_contact_sheet.png",
+    "seed_gallery.png",
+    "collection_gallery.png",
+    "studio.html",
+    "index.html"
+  ],
+  "batch": 2,
+  "collection": [
+    {
+      "genome": {
+        "background_twist": 0.468336,
+        "beaming_strength": 0.428082,
+        "center_x": -0.195035,
+        "center_y": 0.23768,
+        "color_temperature": 0.015716,
+        "disk_band_count": 8,
+        "disk_gap": 0.138157,
+        "disk_radius": 0.500283,
+        "disk_thickness": 0.337402,
+        "disk_tilt": -0.057544,
+        "disk_turbulence": 1.232947,
+        "horizon_radius": 0.18904,
+        "jet_angle": 0.010274,
+        "jet_asymmetry": -0.121669,
+        "jet_length": 1.202788,
+        "jet_width": 0.048776,
+        "lensing_strength": 0.196762,
+        "photon_radius": 0.247242,
+        "photon_tightness": 0.000595,
+        "preset": "event-horizon",
+        "rotation_direction": -1,
+        "seed": 260613,
+        "subject": "black-hole"
+      },
+      "preset": "event-horizon",
+      "score": {
+        "reasons": {
+          "busy_penalty": -0.0,
+          "color_harmony": 31.3574,
+          "focal_balance": 68.3682,
+          "ring_separation": 56.9613,
+          "thirds": 77.0573,
+          "tonal_range": 200.9879
+        },
+        "total": 168.216
+      },
+      "seed": 260613
+    },
+    {
+      "genome": {
+        "background_twist": 1.281107,
+        "beaming_strength": 0.4545,
+        "center_x": 0.317021,
+        "center_y": 0.180157,
+        "color_temperature": 0.174479,
+        "disk_band_count": 14,
+        "disk_gap": 0.102367,
+        "disk_radius": 0.386737,
+        "disk_thickness": 0.417004,
+        "disk_tilt": 0.093711,
+        "disk_turbulence": 0.831603,
+        "horizon_radius": 0.208439,
+        "jet_angle": 0.252044,
+        "jet_asymmetry": 0.23046,
+        "jet_length": 1.146074,
+        "jet_width": 0.057277,
+        "lensing_strength": 0.172667,
+        "photon_radius": 0.245584,
+        "photon_tightness": 0.000582,
+        "preset": "event-horizon",
+        "rotation_direction": 1,
+        "seed": 268532,
+        "subject": "lensed-galaxy"
+      },
+      "preset": "event-horizon",
+      "score": {
+        "reasons": {
+          "busy_penalty": -0.0,
+          "color_harmony": 26.2129,
+          "focal_balance": 94.2347,
+          "ring_separation": 0.0,
+          "thirds": 84.4268,
+          "tonal_range": 122.6057
+        },
+        "total": 125.2638
+      },
+      "seed": 268532
+    }
+  ],
+  "cross_subject": true,
+  "curator": "heuristic",
+  "dependencies": {
+    "ffmpeg": "/opt/homebrew/bin/ffmpeg",
+    "numpy": "2.4.2",
+    "pillow": "12.1.0"
+  },
+  "frames": 2,
+  "generated_at": "2026-06-20T01:25:21.245025+00:00",
+  "height": 96,
+  "preset": "neon-collapse",
+  "preview_height": 96,
+  "preview_width": 96,
+  "project": "starforge-lab",
+  "python": "3.14.3",
+  "seed": 260613,
+  "seed_candidates": [
+    {
+      "reasons": {
+        "busy_penalty": -0.0,
+        "color_harmony": 37.7857,
+        "focal_balance": 77.285,
+        "ring_separation": 4.5494,
+        "thirds": 67.0051,
+        "tonal_range": 192.1235
+      },
+      "score": 144.4413,
+      "seed": 260613
+    },
+    {
+      "reasons": {
+        "busy_penalty": -0.0,
+        "color_harmony": 35.165,
+        "focal_balance": 76.9104,
+        "ring_separation": 42.4995,
+        "thirds": 69.7836,
+        "tonal_range": 198.5808
+      },
+      "score": 161.0229,
+      "seed": 268532
+    }
+  ],
+  "selected_genome": {
+    "background_twist": 0.468336,
+    "beaming_strength": 0.428082,
+    "center_x": -0.195035,
+    "center_y": 0.23768,
+    "color_temperature": 0.015716,
+    "disk_band_count": 8,
+    "disk_gap": 0.138157,
+    "disk_radius": 0.500283,
+    "disk_thickness": 0.337402,
+    "disk_tilt": -0.057544,
+    "disk_turbulence": 1.232947,
+    "horizon_radius": 0.18904,
+    "jet_angle": 0.010274,
+    "jet_asymmetry": -0.121669,
+    "jet_length": 1.202788,
+    "jet_width": 0.048776,
+    "lensing_strength": 0.196762,
+    "photon_radius": 0.247242,
+    "photon_tightness": 0.000595,
+    "preset": "event-horizon",
+    "rotation_direction": -1,
+    "seed": 260613,
+    "subject": "black-hole"
+  },
+  "selected_preset": "event-horizon",
+  "selected_seed": 260613,
+  "selected_subject": "black-hole",
+  "studio": [
+    {
+      "frontier": true,
+      "norm_total": 3.0,
+      "preset": "event-horizon",
+      "raw_total": 168.216,
+      "seed": 260613,
+      "subject": "black-hole",
+      "subject_rank": 1,
+      "why": [
+        "color_harmony",
+        "focal_balance"
+      ]
+    },
+    {
+      "frontier": true,
+      "norm_total": 3.0,
+      "preset": "event-horizon",
+      "raw_total": 125.2638,
+      "seed": 268532,
+      "subject": "lensed-galaxy",
+      "subject_rank": 1,
+      "why": [
+        "color_harmony",
+        "focal_balance"
+      ]
+    }
+  ],
+  "subject": "black-hole",
+  "supersample": 1,
+  "top_k": 2,
+  "version": "7.0.1",
+  "video": {
+    "mp4": "not requested",
+    "webm": "not requested"
+  },
+  "width": 96
+}
